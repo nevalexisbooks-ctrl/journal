@@ -201,6 +201,35 @@
   font-style: italic;
 }
 
+/* ── API KEY GEMINI ──────────────────────────────────────────── */
+.apiKeySection {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+.apiKeyRow {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+}
+
+.apiKeyInput {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.btnToggleKey {
+  background: var(--bg);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 8px;
+  width: 38px; height: 36px;
+  cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.15s;
+}
+.btnToggleKey:hover { background: #e8e2da; }
+
 /* ── MANUTENZIONE ────────────────────────────────────────────── */
 .maintButtons {
   display: flex; flex-direction: column; gap: 10px;

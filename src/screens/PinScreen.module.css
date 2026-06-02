@@ -1,0 +1,99 @@
+/* ════════════════════════════════════════════════════════════════
+   PinScreen
+════════════════════════════════════════════════════════════════ */
+
+.screen {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  max-width: 320px;
+  padding: 0 16px;
+}
+
+.title {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--header);
+  margin: 0 0 6px;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: 0 0 32px;
+  text-align: center;
+}
+
+/* ── Cerchi ── */
+.dots {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 40px;
+}
+
+.dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid var(--header);
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.dotFilled {
+  background: var(--header);
+}
+
+.dotError {
+  border-color: #e05555;
+  background: #e05555;
+}
+
+/* ── Tastiera ── */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.key {
+  background: var(--white);
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  height: 68px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s, box-shadow 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.key:hover  { background: #f0ebe3; }
+.key:active { transform: scale(0.93); box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
+
+.keyEmpty {
+  /* cella vuota a sinistra dello 0 */
+}
+
+.keyDel {
+  font-size: 1.3rem;
+  color: var(--text-muted);
+}

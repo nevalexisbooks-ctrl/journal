@@ -34,6 +34,11 @@ export default function SettingsScreen({ onBack }) {
   // ── AI Prompt ─────────────────────────────────────────────────────────────
   const [aiPrompt,    setAiPrompt]    = useState(DEFAULT_AI_PROMPT)
 
+  // ── Gemini API Key (localStorage) ─────────────────────────────────────────
+  const [geminiKey,     setGeminiKey]     = useState(() => localStorage.getItem('gemini_api_key') ?? '')
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
+  const [geminiSaved,   setGeminiSaved]   = useState(false)
+
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading,     setLoading]     = useState(true)
 
@@ -196,6 +201,16 @@ export default function SettingsScreen({ onBack }) {
   const forceReload = () => window.location.reload(true)
 
   // ════════════════════════════════════════════════════════════════
+  //  HANDLER — GEMINI API KEY
+  // ════════════════════════════════════════════════════════════════
+
+  const saveGeminiKey = () => {
+    localStorage.setItem('gemini_api_key', geminiKey.trim())
+    setGeminiSaved(true)
+    setTimeout(() => setGeminiSaved(false), 2500)
+  }
+
+  // ════════════════════════════════════════════════════════════════
   //  RENDER
   // ════════════════════════════════════════════════════════════════
 
@@ -338,7 +353,6 @@ export default function SettingsScreen({ onBack }) {
         </section>
 
         {/* ── PROMPT AI ───────────────────────────────────────── */}
-        {/* TODO: AI — usare questo prompt come system message nella chat */}
         <section className={styles.cardWhite}>
           <h2 className={styles.blockTitle}>Prompt Assistente</h2>
           <p className={styles.blockSub}>
@@ -351,6 +365,35 @@ export default function SettingsScreen({ onBack }) {
             rows={6}
           />
           <p className={styles.autoSaveNote}>Salvataggio automatico</p>
+
+          <div className={styles.apiKeySection}>
+            <label className={styles.fieldLabel}>API Key Gemini</label>
+            <div className={styles.apiKeyRow}>
+              <input
+                className={`${styles.fieldInput} ${styles.apiKeyInput}`}
+                type={showGeminiKey ? 'text' : 'password'}
+                value={geminiKey}
+                onChange={e => setGeminiKey(e.target.value)}
+                placeholder="Incolla la tua API key…"
+                autoComplete="off"
+              />
+              <button
+                className={styles.btnToggleKey}
+                onClick={() => setShowGeminiKey(v => !v)}
+                type="button"
+                aria-label={showGeminiKey ? 'Nascondi chiave' : 'Mostra chiave'}
+              >
+                {showGeminiKey ? '🙈' : '👁'}
+              </button>
+            </div>
+            <button
+              className={`${styles.btnPrimary} ${geminiSaved ? styles.btnSaved : ''}`}
+              onClick={saveGeminiKey}
+              style={{ marginTop: 10 }}
+            >
+              {geminiSaved ? '✓ Salvata' : 'Salva chiave'}
+            </button>
+          </div>
         </section>
 
         {/* ── MANUTENZIONE ────────────────────────────────────── */}

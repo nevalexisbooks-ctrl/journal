@@ -123,7 +123,7 @@ async function buildSystemPrompt() {
 // ════════════════════════════════════════════════════════════════
 
 async function callGemini(messages, systemPrompt) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+  const apiKey = localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY
 
   if (!apiKey) {
     throw new Error('NO_API_KEY')
@@ -160,10 +160,10 @@ async function callGemini(messages, systemPrompt) {
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
-const API_KEY_MISSING = !import.meta.env.VITE_GEMINI_API_KEY
+const API_KEY_MISSING = !localStorage.getItem('gemini_api_key') && !import.meta.env.VITE_GEMINI_API_KEY
 
 const WELCOME_MSG = API_KEY_MISSING
-  ? 'Configura la tua API key Gemini nel file .env per usare l\'assistente.\n\nNel file .env nella root del progetto scrivi:\nVITE_GEMINI_API_KEY=la-tua-chiave'
+  ? 'Configura la tua API key Gemini nelle Impostazioni per usare l\'assistente.'
   : 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
 
 export default function ChatScreen({ onBack }) {

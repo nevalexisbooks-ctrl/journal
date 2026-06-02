@@ -6,6 +6,7 @@ import WeeklyRecapScreen   from './screens/WeeklyRecapScreen.jsx'
 import MonthlyViewScreen   from './screens/MonthlyViewScreen.jsx'
 import ChatScreen          from './screens/ChatScreen.jsx'
 import SettingsScreen      from './screens/SettingsScreen.jsx'
+import PinScreen           from './screens/PinScreen.jsx'
 
 export const SCREENS = {
   HOME:     'home',
@@ -17,6 +18,9 @@ export const SCREENS = {
 }
 
 export default function App() {
+  // PIN: sbloccato per tutta la sessione (non persiste su localStorage)
+  const [unlocked,   setUnlocked]   = useState(false)
+
   const [screen,     setScreen]     = useState(SCREENS.HOME)
   // Data opzionale per aprire DetailScreen a una data specifica
   const [detailDate, setDetailDate] = useState(null)
@@ -27,6 +31,10 @@ export default function App() {
   const openDetailAt = (date) => {
     setDetailDate(date)
     setScreen(SCREENS.DETAIL)
+  }
+
+  if (!unlocked) {
+    return <PinScreen onUnlocked={() => setUnlocked(true)} />
   }
 
   return (
