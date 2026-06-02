@@ -1,0 +1,63 @@
+/* ─── Card Monthly View ───────────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.card:active { transform: scale(0.97); }
+
+.title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-bottom: 2px;
+  color: var(--text);
+}
+
+.monthLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+/* Griglia 7 colonne */
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calHeaderCell {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  padding-bottom: 3px;
+}
+
+.calCell {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  padding: 3px 0;
+  line-height: 1.6;
+  border-radius: 50%;
+  /* TODO: collegare Firebase — aggiungere classi per giorni con entry */
+}
+
+.calCellEmpty {
+  visibility: hidden;
+}
+
+/* Giorno corrente — bordo verde salvia */
+.calToday {
+  border: 2px solid var(--header);
+  color: var(--header);
+  font-weight: 800;
+  border-radius: 50%;
+}

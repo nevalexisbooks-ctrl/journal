@@ -1,0 +1,24 @@
+# Dipendenze
+node_modules/
+
+# Build Vite
+dist/
+dist-ssr/
+
+# Variabili d'ambiente (NON committare mai la API key)
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db

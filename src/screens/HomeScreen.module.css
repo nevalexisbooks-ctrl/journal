@@ -1,0 +1,20 @@
+/* ─── HomeScreen ──────────────────────────────────────────────────────────── */
+.screen {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* Area scrollabile sotto l'header */
+.main {
+  padding: 20px 16px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Griglia a due colonne per Weekly + Monthly */
+.twoCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

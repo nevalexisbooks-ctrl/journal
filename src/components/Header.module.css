@@ -1,0 +1,44 @@
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.header {
+  background: var(--header);
+  background-image: linear-gradient(160deg, #96ad91 0%, var(--header) 100%);
+  border-radius: 0 0 32px 32px;
+  padding: 52px 24px 32px;
+  position: relative;
+  text-align: center;
+}
+
+/* Ingranaggio — posizione assoluta in alto a destra */
+.gearBtn {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.85;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+.gearBtn:hover { opacity: 1; }
+
+/* "Buongiorno" in corsivo */
+.greeting {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+/* Data corrente */
+.date {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+}

@@ -1,0 +1,25 @@
+/* ─── Card Journal / Chat ─────────────────────────────────────────────────── */
+.card {
+  background: var(--sand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card:hover  { transform: scale(0.99); }
+.card:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+.title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.sub {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}

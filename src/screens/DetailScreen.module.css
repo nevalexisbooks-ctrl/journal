@@ -1,0 +1,497 @@
+/* ════════════════════════════════════════════════════════════════
+   DetailScreen — "Nel dettaglio"
+════════════════════════════════════════════════════════════════ */
+
+.screen {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+.header {
+  background: var(--header);
+  background-image: linear-gradient(160deg, #96ad91 0%, var(--header) 100%);
+  border-radius: 0 0 32px 32px;
+  padding: 48px 24px 24px;
+  position: relative;
+  text-align: center;
+}
+
+/* Freccia ← — torna alla Homepage */
+.backBtn {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+.backBtn:hover { opacity: 1; }
+
+/* "Nel dettaglio..." */
+.headerTitle {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+
+/* Riga << data >> */
+.dateNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.navArrow {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'Open Sans', sans-serif;
+}
+.navArrow:hover { background: rgba(255,255,255,0.35); }
+
+.dateLabel {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  min-width: 110px;
+  text-align: center;
+}
+
+/* Avviso data futura */
+.futureNotice {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.75);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* ── CONTENUTO PRINCIPALE ────────────────────────────────────── */
+.main {
+  padding: 18px 14px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── STATO DISABILITATO (data futura) ───────────────────────── */
+.disabled {
+  opacity: 0.4;
+  pointer-events: none;  /* disabilita tutti i click/input dentro */
+}
+
+/* ── CARD BASE ───────────────────────────────────────────────── */
+.cardWhite {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 18px 16px;
+}
+
+.cardSand {
+  background: var(--sand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 16px;
+}
+
+/* Titolo blocco */
+.blockTitle {
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+/* ── TO DO ───────────────────────────────────────────────────── */
+.todoList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todoItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.todoDone .todoText {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Checkbox task */
+.todoCheck {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 2px solid var(--sage-light);
+  flex-shrink: 0;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s, border-color 0.15s;
+}
+.todoChecked {
+  background: var(--header);
+  border-color: var(--header);
+}
+.todoChecked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.todoText { flex: 1; }
+
+/* Riga aggiunta task */
+.todoAddRow {
+  margin-top: 4px;
+}
+
+.todoAddBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  letter-spacing: 3px;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.15s;
+}
+.todoAddBtn:hover { color: var(--text); }
+
+.todoInput {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--sage-light);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.todoInput:focus { border-color: var(--header); }
+
+/* ── CHALLENGE YOURSELF ──────────────────────────────────────── */
+.challengeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.challengeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.challengeLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.challengeInputUnit {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.challengeInput {
+  width: 70px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.challengeInput:focus         { border-color: var(--header); }
+.challengeInput:disabled      { opacity: 0.5; cursor: not-allowed; }
+.challengeInput[type="number"] { -moz-appearance: textfield; }
+.challengeInput[type="number"]::-webkit-inner-spin-button,
+.challengeInput[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.unit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Checkbox Zero zuccheri */
+.challengeCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  padding-top: 4px;
+}
+
+.bigCheck {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bigChecked {
+  background: var(--header);
+  border-color: var(--header);
+}
+.bigChecked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* ── QUADRANTI 2×2 ───────────────────────────────────────────── */
+.twoByTwo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 12px;
+}
+
+/* Box salvia */
+.quadSage {
+  background: var(--sage-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+}
+
+/* Box bianco */
+.quadWhite {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+}
+
+.quadTitle {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+/* ── Sonno ── */
+.sonnoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.sonnoLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.timeInput {
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  outline: none;
+  width: 80px;
+}
+.timeInput:focus    { border-color: var(--header); }
+.timeInput:disabled { opacity: 0.5; }
+
+.sonnoTotal {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 6px 0 8px;
+}
+.sonnoTotal strong { color: var(--text); font-weight: 800; }
+
+.smallInput { width: 46px; }
+
+/* ── Ciclo — Donut ── */
+.donutWrapper {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 8px;
+}
+
+.donutSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.cyclePhase {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+}
+
+.cycleDay {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 2px 0 4px;
+}
+
+.cycleDesc {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ── Umore — emoji grid ── */
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.emojiBtn {
+  background: var(--bg);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-size: 1.15rem;
+  padding: 4px 2px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+}
+.emojiBtn:hover   { background: var(--sage-light); }
+.emojiSel {
+  border-color: var(--header);
+  background: var(--sage-light);
+}
+.emojiBtn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.umoreVotoRow { margin-top: 2px; }
+
+/* ── Small Habits ── */
+.habitList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.habitItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.habitCheck {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 2px solid rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.6);
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s;
+}
+.habitChecked {
+  background: var(--header);
+  border-color: var(--header);
+}
+.habitChecked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.habitDone {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* ── NOTE ────────────────────────────────────────────────────── */
+.noteArea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 2rem;
+  padding: 0;
+  /* Righe orizzontali con background-gradient */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent calc(2rem - 1px),
+    rgba(139, 106, 60, 0.2) 1px
+  );
+  background-size: 100% 2rem;
+}
+.noteArea::placeholder { color: var(--text-muted); }

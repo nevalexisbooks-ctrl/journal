@@ -1,0 +1,49 @@
+/* ════════════════════════════════════════
+   VARIABILI CSS GLOBALI & RESET
+════════════════════════════════════════ */
+:root {
+  --bg:          #F2EDE6;   /* crema chiaro */
+  --header:      #8A9E85;   /* verde salvia */
+  --sage-light:  #C5D4C0;   /* salvia chiarissimo */
+  --white:       #FFFFFF;
+  --sand:        #D9C9A8;   /* sabbia/beige */
+  --text:        #3A3A3A;   /* testo scuro */
+  --text-muted:  #7A7A7A;
+  --icon-stroke: #6B8F6B;   /* stroke icone SVG */
+
+  --radius-lg:   24px;
+  --radius-md:   16px;
+  --radius-sm:   12px;
+  --shadow:      0 4px 18px rgba(0, 0, 0, 0.08);
+  --shadow-sm:   0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* colore neutro fuori dall'app su desktop */
+  background: #c8c4be;
+}
+
+body {
+  font-family: 'Open Sans', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  /* effetto "device" su desktop */
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.18);
+  overflow-x: hidden;
+}
+
+/* Azzera stili default bottoni */
+button {
+  font-family: inherit;
+}
