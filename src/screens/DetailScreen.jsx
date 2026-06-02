@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
-import { toDateKey } from '../utils/calcWidgets.js'
+import { toDateKey, calcCyclePhase } from '../utils/calcWidgets.js'
 import styles from './DetailScreen.module.css'
 
 /** Sposta una data di `delta` giorni */
@@ -70,18 +70,58 @@ function donutSlice(cx, cy, outerR, innerR, startDeg, endDeg) {
   )
 }
 
-// Fasi ciclo standard 28 giorni
+// ── Fasi ciclo (colori e proporzioni per il donut) ────────────────────────
 const CYCLE_PHASES = [
-  { name: 'Mestruale',   days: 5,  color: '#E88080', desc: 'Periodo di riposo e introspezione.' },
-  { name: 'Follicolare', days: 8,  color: '#8A9E85', desc: 'Energia in aumento, ottimo momento per nuovi inizi.' },
-  { name: 'Ovulatoria',  days: 3,  color: '#D4C070', desc: 'Picco di energia e socialità.' },
-  { name: 'Luteale',     days: 12, color: '#D9C9A8', desc: 'Tempo di completare e riflettere.' },
+  { name: 'Mestruale',   days: 5,  color: '#E88080' },
+  { name: 'Follicolare', days: 8,  color: '#8A9E85' },
+  { name: 'Ovulatoria',  days: 3,  color: '#D4C070' },
+  { name: 'Luteale',     days: 12, color: '#D9C9A8' },
 ]
-const CYCLE_TOTAL   = 28
-const CURRENT_PHASE = 1  // placeholder: Follicolare
-const CURRENT_DAY   = 5  // placeholder: giorno 5
+const CYCLE_TOTAL = 28
 
-function CycleDonut() {
+// ── Testi specifici per ogni giorno del ciclo (1-28) ─────────────────────
+// Per giorni > 28 (cicli lunghi) si usa il testo del giorno 28 tramite getCycleText()
+const CYCLE_DAY_TEXTS = {
+  1:  'Il corpo sta rinnovandosi. Concediti riposo senza sensi di colpa.',
+  2:  'Il flusso è probabilmente al massimo. Tieni caldo e idratati bene.',
+  3:  "I crampi potrebbero allentarsi un po'. L'umore è ancora altalenante, è ormonale.",
+  4:  "L'energia torna lentamente. Non forzare, lasciala arrivare.",
+  5:  'Quasi fuori dalla fase mestruale. Potresti sentirti già più leggera.',
+  6:  'Gli estrogeni iniziano a salire. Buon momento per pianificare e fare chiarezza.',
+  7:  'L\'energia cresce. Il corpo risponde bene al movimento oggi.',
+  8:  'Mente lucida e motivazione alta. Approfitta di questa fase produttiva.',
+  9:  'Ti senti più socievole del solito? Gli ormoni favoriscono la connessione con gli altri.',
+  10: 'Energia stabile e umore positivo. Buon momento per affrontare cose rimaste in sospeso.',
+  11: 'Il picco di estrogeni si avvicina. Potresti sentirti più creativa e ispirata.',
+  12: 'La pelle tende a essere al meglio, l\'umore alto. Goditi questa fase.',
+  13: 'Il corpo si prepara per l\'ovulazione. Energia al top.',
+  14: 'Picco assoluto di energia e fiducia. Probabilmente la tua giornata migliore del mese.',
+  15: 'Sei nel cuore della fase ovulatoria. Carica e pronta a tutto.',
+  16: "L'ovulazione si conclude. Inizia a introdurre qualche momento di calma.",
+  17: 'Inizia la fase luteale. Potresti sentire i primi accenni di gonfiore o stanchezza, è normale.',
+  18: "L'energia cala gradualmente. Privilegia attività dolci come yoga o passeggiate.",
+  19: 'La mente è più riflessiva oggi. Ottimo momento per scrivere e fare ordine.',
+  20: 'Potresti avere qualche craving in più. Il corpo cerca energie extra, non giudicarti.',
+  21: "L'umore può essere variabile. Se ti senti irritabile è ormonale, non è colpa tua.",
+  22: 'Stai entrando nella settimana pre-mestruale. Dai priorità al riposo.',
+  23: 'I sintomi PMS possono farsi sentire. Idratazione e movimento leggero aiutano.',
+  24: 'Potresti sentirti più sensibile emotivamente. Concediti gentilezza oggi.',
+  25: 'Il gonfiore che senti è temporaneo. Il corpo trattiene più liquidi in questi giorni.',
+  26: "L'energia è probabilmente bassa. Va benissimo fare meno e rallentare.",
+  27: 'Il corpo sta lavorando tanto. Rispettalo e riposati.',
+  28: 'Ultimo giorno del ciclo. Prenditi cura di te stasera.',
+}
+
+/**
+ * Restituisce il testo per il giorno specificato del ciclo.
+ * Clamp a 1-28: per cicli più lunghi usa il testo del giorno 28.
+ */
+function getCycleText(dayInCycle) {
+  const d = Math.max(1, Math.min(28, dayInCycle || 1))
+  return CYCLE_DAY_TEXTS[d]
+}
+
+function CycleDonut({ activeIdx = 1 }) {
   const cx = 50, cy = 50, outerR = 38, innerR = 24
   let angle = 0
   return (
@@ -93,9 +133,9 @@ function CycleDonut() {
         return (
           <path
             key={ph.name}
-            d={donutSlice(cx, cy, i === CURRENT_PHASE ? outerR + 4 : outerR, innerR, start, angle)}
+            d={donutSlice(cx, cy, i === activeIdx ? outerR + 4 : outerR, innerR, start, angle)}
             fill={ph.color}
-            opacity={i === CURRENT_PHASE ? 1 : 0.5}
+            opacity={i === activeIdx ? 1 : 0.5}
           />
         )
       })}
@@ -109,22 +149,35 @@ function CycleDonut() {
 
 const DEFAULT_CHALLENGE = { passi: '', acqua: '', social: '', cyclette: '', yoga: '', zeroZuccheri: false }
 const DEFAULT_SONNO     = { dalle: '', alle: '', qualita: '' }
-const DEFAULT_HABITS    = [
-  { id: 1, text: 'Crochet',    done: false },
-  { id: 2, text: 'Dry brush',  done: false },
-  { id: 3, text: 'Leggere',    done: false },
-  { id: 4, text: 'Stretching', done: false },
-  { id: 5, text: 'Journaling', done: false },
+
+// Config habit di default (usate se settings/habits non esiste ancora)
+const DEFAULT_HABITS_CFG = [
+  { id: 1, text: 'Crochet',    startDate: '', endDate: null },
+  { id: 2, text: 'Dry brush',  startDate: '', endDate: null },
+  { id: 3, text: 'Leggere',    startDate: '', endDate: null },
+  { id: 4, text: 'Stretching', startDate: '', endDate: null },
+  { id: 5, text: 'Journaling', startDate: '', endDate: null },
 ]
+
+/** Filtra habits per data: startDate <= date < endDate (se presente) */
+function filterHabits(cfg, date) {
+  const key = toDateKey(date)
+  return cfg.filter(h => {
+    if (h.startDate && key < h.startDate) return false
+    if (h.endDate   && key >= h.endDate)  return false
+    return true
+  })
+}
+
 const MOOD_EMOJI = ['🥰', '😌', '😑', '🫩', '🤒', '🥺', '🫨', '😡']
 
 // ════════════════════════════════════════════════════════════════
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
-export default function DetailScreen({ onBack }) {
-  // ── Data visualizzata ────────────────────────────────────────
-  const [currentDate, setCurrentDate] = useState(() => new Date())
+export default function DetailScreen({ onBack, initialDate }) {
+  // ── Data visualizzata (può partire da una data specifica) ────
+  const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date())
   const future = isFutureDay(currentDate)
 
   // ── Stato locale della giornata ──────────────────────────────
@@ -133,8 +186,11 @@ export default function DetailScreen({ onBack }) {
   const [sonno,      setSonno]      = useState(DEFAULT_SONNO)
   const [emojiSel,   setEmojiSel]   = useState([])
   const [umoreVoto,  setUmoreVoto]  = useState('')
-  const [habits,     setHabits]     = useState(DEFAULT_HABITS)
+  const [habits,     setHabits]     = useState([])
   const [note,       setNote]       = useState('')
+
+  // ── Stato ciclo (caricato da settings/ciclo) ─────────────────
+  const [cycleInfo, setCycleInfo] = useState({ phaseIdx: 1, dayInPhase: 1 })
 
   // ── UI: aggiunta to-do inline ────────────────────────────────
   const [addingTodo,  setAddingTodo]  = useState(false)
@@ -165,38 +221,58 @@ export default function DetailScreen({ onBack }) {
 
     async function loadDay() {
       try {
-        const snap = await getDoc(doc(db, 'giorni', key))
+        // Carica in parallelo: giornata + config habits + config ciclo
+        const [daySnap, habitsSnap, cicloSnap] = await Promise.all([
+          getDoc(doc(db, 'giorni',   key)),
+          getDoc(doc(db, 'settings', 'habits')),
+          getDoc(doc(db, 'settings', 'ciclo')),
+        ])
         if (cancelled) return
 
-        if (snap.exists()) {
-          const d = snap.data()
-          setTodos(d.todos      ?? [])
-          setChallenge(d.challenge  ?? DEFAULT_CHALLENGE)
-          setSonno(d.sonno       ?? DEFAULT_SONNO)
-          setEmojiSel(d.umore?.faccine ?? [])
-          setUmoreVoto(d.umore?.voto    ?? '')
-          // Mantieni la lista habit di default ma aggiorna i `done`
-          setHabits(DEFAULT_HABITS.map(h => {
-            const saved = (d.habits ?? []).find(s => s.id === h.id)
-            return saved ? { ...h, done: saved.done ?? false, text: saved.text ?? h.text } : h
-          }))
-          setNote(d.note ?? '')
+        // ── Habit: sorgente di verità da settings ──────────────
+        const habitsCfg = habitsSnap.exists()
+          ? (habitsSnap.data().habits ?? DEFAULT_HABITS_CFG)
+          : DEFAULT_HABITS_CFG
+        const filteredCfg = filterHabits(habitsCfg, currentDate)
+
+        // ── Ciclo: calcola fase per la data visualizzata ────────
+        if (cicloSnap.exists()) {
+          const c  = cicloSnap.data()
+          const ph = calcCyclePhase(c.dataInizio, c.durataCiclo, c.durataflusso, currentDate)
+          setCycleInfo(ph)
         } else {
-          // Giornata nuova — tutto vuoto
+          setCycleInfo({ phaseIdx: 1, dayInPhase: 1 })
+        }
+
+        if (daySnap.exists()) {
+          const d = daySnap.data()
+          setTodos(d.todos         ?? [])
+          setChallenge(d.challenge ?? DEFAULT_CHALLENGE)
+          setSonno(d.sonno         ?? DEFAULT_SONNO)
+          setEmojiSel(d.umore?.faccine ?? [])
+          setUmoreVoto(d.umore?.voto   ?? '')
+          setNote(d.note ?? '')
+
+          // Merge config habits + done state dal giorno
+          const doneMap = (d.habits ?? []).reduce((acc, h) => {
+            acc[h.id] = h.done ?? false; return acc
+          }, {})
+          setHabits(filteredCfg.map(h => ({ ...h, done: doneMap[h.id] ?? false })))
+        } else {
           setTodos([])
           setChallenge(DEFAULT_CHALLENGE)
           setSonno(DEFAULT_SONNO)
           setEmojiSel([])
           setUmoreVoto('')
-          setHabits(DEFAULT_HABITS)
           setNote('')
+          setHabits(filteredCfg.map(h => ({ ...h, done: false })))
         }
       } catch (err) {
         console.error('Errore caricamento giornata:', err)
       } finally {
         if (!cancelled) {
-          loadedKeyRef.current  = key
-          dataReadyRef.current  = true
+          loadedKeyRef.current = key
+          dataReadyRef.current = true
         }
       }
     }
@@ -503,13 +579,14 @@ export default function DetailScreen({ onBack }) {
           {/* Ciclo — bianco, riga 1 dx (mai disabilitato) */}
           <section className={styles.quadWhite}>
             <h3 className={styles.quadTitle}>Ciclo</h3>
-            {/* TODO: Firebase — caricare fase ciclo reale dell'utente */}
+            {/* Fase calcolata da settings/ciclo tramite calcCyclePhase() */}
             <div className={styles.donutWrapper}>
-              <CycleDonut />
+              <CycleDonut activeIdx={cycleInfo.phaseIdx} />
             </div>
-            <p className={styles.cyclePhase}>{CYCLE_PHASES[CURRENT_PHASE].name}</p>
-            <p className={styles.cycleDay}>Giorno {CURRENT_DAY}</p>
-            <p className={styles.cycleDesc}>{CYCLE_PHASES[CURRENT_PHASE].desc}</p>
+            {/* Mostra il giorno ASSOLUTO del ciclo (es. "Giorno 22"), non il giorno nella fase */}
+            <p className={styles.cyclePhase}>{CYCLE_PHASES[cycleInfo.phaseIdx].name}</p>
+            <p className={styles.cycleDay}>Giorno {cycleInfo.dayInCycle}</p>
+            <p className={styles.cycleDesc}>{getCycleText(cycleInfo.dayInCycle)}</p>
           </section>
 
           {/* Umore — bianco, riga 2 sx */}

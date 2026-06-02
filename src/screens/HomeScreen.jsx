@@ -13,30 +13,17 @@ export default function HomeScreen({ navigate }) {
   return (
     <div className={styles.screen}>
 
-      <Header onSettingsClick={() => console.log('Impostazioni')} />
+      <Header onSettingsClick={() => navigate(SCREENS.SETTINGS)} />
 
       <main className={styles.main}>
 
-        {/* Pulsante "!" → apre DetailScreen */}
-        <ComeVaOggiCard
-          onInfoClick={() => navigate(SCREENS.DETAIL)}
-        />
+        <ComeVaOggiCard onInfoClick={() => navigate(SCREENS.DETAIL)} />
 
-        {/* Journal / Chat */}
-        <JournalCard
-          onClick={() => console.log('Journal — TODO')}
-        />
+        <JournalCard onClick={() => navigate(SCREENS.CHAT)} />
 
         <div className={styles.twoCols}>
-          {/* Quadrante Weekly → apre WeeklyRecapScreen */}
-          <WeeklyRecapCard
-            onClick={() => navigate(SCREENS.WEEKLY)}
-          />
-
-          {/* Quadrante Monthly → TODO */}
-          <MonthlyViewCard
-            onClick={() => console.log('Monthly — TODO')}
-          />
+          <WeeklyRecapCard onClick={() => navigate(SCREENS.WEEKLY)} />
+          <MonthlyViewCard onClick={() => navigate(SCREENS.MONTHLY)} />
         </div>
 
       </main>

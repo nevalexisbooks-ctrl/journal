@@ -1,0 +1,226 @@
+/* ════════════════════════════════════════════════════════════════
+   SettingsScreen
+════════════════════════════════════════════════════════════════ */
+
+.screen { min-height: 100vh; background: var(--bg); }
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+.header {
+  background: var(--header);
+  background-image: linear-gradient(160deg, #96ad91 0%, var(--header) 100%);
+  border-radius: 0 0 32px 32px;
+  padding: 48px 24px 28px;
+  position: relative;
+  text-align: center;
+}
+
+.backBtn {
+  position: absolute; top: 14px; left: 16px;
+  background: none; border: none; cursor: pointer;
+  opacity: 0.85; padding: 4px 6px;
+  display: flex; align-items: center;
+  transition: opacity 0.15s;
+}
+.backBtn:hover { opacity: 1; }
+
+.headerTitle {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2rem; font-weight: 700; color: #fff;
+}
+
+/* ── CONTENUTO ───────────────────────────────────────────────── */
+.main {
+  padding: 18px 14px 48px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.loadingText {
+  text-align: center; color: var(--text-muted);
+  padding: 40px; font-size: 0.9rem;
+}
+
+/* ── CARD BASE ───────────────────────────────────────────────── */
+.cardWhite {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 20px 18px;
+}
+
+.cardSage {
+  background: var(--sage-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 18px;
+}
+
+.cardSand {
+  background: var(--sand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 18px;
+}
+
+.blockTitle {
+  font-size: 1rem; font-weight: 800;
+  color: var(--text); margin-bottom: 6px;
+}
+
+.blockSub {
+  font-size: 0.76rem; color: var(--text-muted);
+  margin-bottom: 14px; line-height: 1.5;
+}
+
+/* ── CAMPI FORM ──────────────────────────────────────────────── */
+.fieldGroup {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 10px; margin-bottom: 12px;
+}
+
+.fieldLabel {
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--text); flex: 1;
+}
+
+.fieldInput {
+  background: var(--bg);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 8px; color: var(--text);
+  font-family: inherit; font-size: 0.85rem;
+  padding: 6px 10px; outline: none;
+  transition: border-color 0.15s;
+}
+.fieldInput:focus { border-color: var(--header); }
+
+.inputUnit { display: flex; align-items: center; gap: 6px; }
+
+.inputShort { width: 64px; text-align: center; }
+.inputShort[type="number"] { -moz-appearance: textfield; }
+.inputShort[type="number"]::-webkit-inner-spin-button,
+.inputShort[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.unit { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+
+/* ── PULSANTI ────────────────────────────────────────────────── */
+.btnPrimary {
+  background: var(--header); color: #fff;
+  border: none; border-radius: 10px;
+  padding: 8px 22px; font-family: inherit;
+  font-size: 0.88rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+  display: block; margin-top: 4px;
+}
+.btnPrimary:hover    { opacity: 0.88; }
+.btnPrimary:disabled { opacity: 0.5; cursor: default; }
+.btnSaved            { background: #5a8f6e; }
+
+.btnAdd {
+  background: rgba(255,255,255,0.55);
+  border: 1.5px dashed rgba(0,0,0,0.2);
+  border-radius: 10px; color: var(--text);
+  font-family: inherit; font-size: 0.85rem;
+  font-weight: 700; padding: 8px 0;
+  width: 100%; cursor: pointer;
+  margin-top: 10px; transition: background 0.15s;
+}
+.btnAdd:hover { background: rgba(255,255,255,0.8); }
+
+/* ── HABITS ──────────────────────────────────────────────────── */
+.habitsList {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.habitCard {
+  background: rgba(255,255,255,0.65);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.habitNameRow {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+
+.habitNameInput {
+  flex: 1; background: transparent;
+  border: none; border-bottom: 1.5px solid rgba(0,0,0,0.15);
+  border-radius: 0; color: var(--text);
+  font-family: inherit; font-size: 0.88rem;
+  font-weight: 700; padding: 3px 0; outline: none;
+  transition: border-color 0.15s;
+}
+.habitNameInput:focus { border-color: var(--header); }
+
+.habitDeleteBtn {
+  width: 26px; height: 26px; border-radius: 7px;
+  border: none; background: #fce8e8; color: #c0392b;
+  font-size: 0.65rem; font-weight: 800;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.habitDeleteBtn:hover { background: #f5c6c6; }
+
+.habitDates {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+
+.habitDateLabel {
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 0.68rem; font-weight: 600;
+  color: var(--text-muted);
+}
+
+.habitDateInput {
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 6px; color: var(--text);
+  font-family: inherit; font-size: 0.72rem;
+  padding: 4px 6px; outline: none;
+  transition: border-color 0.15s; width: 100%;
+}
+.habitDateInput:focus { border-color: var(--header); }
+
+/* ── PROMPT AI ───────────────────────────────────────────────── */
+.promptArea {
+  width: 100%; min-height: 130px; resize: vertical;
+  background: var(--bg);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 10px; color: var(--text);
+  font-family: inherit; font-size: 0.85rem;
+  line-height: 1.6; padding: 10px 12px;
+  outline: none; transition: border-color 0.15s;
+}
+.promptArea:focus { border-color: var(--header); }
+
+.autoSaveNote {
+  font-size: 0.7rem; color: var(--text-muted);
+  margin-top: 6px; text-align: right;
+  font-style: italic;
+}
+
+/* ── MANUTENZIONE ────────────────────────────────────────────── */
+.maintButtons {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.btnMaint {
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px; color: var(--text);
+  font-family: inherit; font-size: 0.9rem;
+  font-weight: 700; padding: 12px 16px;
+  cursor: pointer; text-align: left;
+  transition: background 0.15s, transform 0.1s;
+}
+.btnMaint:hover  { background: rgba(255,255,255,0.9); }
+.btnMaint:active { transform: scale(0.98); }
+
+.btnDanger {
+  color: #c0392b;
+  border-color: #f5c6c6;
+  background: rgba(252,232,232,0.5);
+}
+.btnDanger:hover { background: rgba(252,232,232,0.9); }

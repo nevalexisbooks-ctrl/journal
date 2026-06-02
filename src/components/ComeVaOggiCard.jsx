@@ -1,11 +1,36 @@
 // ─── Card "Come va oggi?" ──────────────────────────────────────────────────
 // Si abbona in tempo reale al documento di OGGI su Firestore (onSnapshot).
 // Calcola widget e testo riepilogo direttamente dai dati salvati.
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { doc, onSnapshot }             from 'firebase/firestore'
 import { db }                           from '../firebase.js'
 import { calcSocialPct, calcWorkoutPct, calcWaterPct } from '../utils/calcWidgets.js'
 import styles from './ComeVaOggiCard.module.css'
+
+// ── Frasi motivazionali (quando non ci sono task da fare) ─────────────────
+const FRASI_MOTIVAZIONALI = [
+  'Ogni giorno è un nuovo inizio. Rendilo speciale. 🌱',
+  'Oggi puoi fare qualcosa che il tuo futuro io ringrazierà. ✨',
+  'Piccoli passi ogni giorno costruiscono grandi risultati. 🪴',
+  'Sei più forte di quanto pensi. Buona giornata! 💪',
+  'La costanza batte il talento. Vai avanti! 🔥',
+  'Oggi è un buon giorno per essere felice. ☀️',
+  'Prenditi cura di te come faresti con qualcuno che ami. 🌸',
+  'Un giorno alla volta. Ce la fai. 🍃',
+  'Il progresso, non la perfezione. 🎯',
+  'Respira. Sorridi. Ricomincia. 🌿',
+  'Anche le giornate tranquille contano. 🌙',
+  'Sei esattamente dove devi essere. 💫',
+]
+
+/** Formatta l'elenco task con grammatica italiana */
+function buildTaskSummary(attive) {
+  if (attive.length === 0)  return null
+  if (attive.length === 1)  return `Oggi hai in programma di ${attive[0].text}`
+  if (attive.length === 2)  return `Oggi hai in programma di ${attive[0].text} e ${attive[1].text}`
+  const tutteTranneLultima = attive.slice(0, -1).map(t => t.text).join(', ')
+  return `Oggi hai in programma di ${tutteTranneLultima} e ${attive[attive.length - 1].text}`
+}
 
 // ── Chiave documento di oggi ───────────────────────────────────────────────
 function todayKey() {
@@ -77,42 +102,38 @@ export default function ComeVaOggiCard({ onInfoClick }) {
   const [water,    setWater]    = useState(75)
   const [summary,  setSummary]  = useState('Oggi hai in programma di…')
 
+  // Frase motivazionale scelta una volta al mount (non cambia tra snapshot)
+  const motivRef = useRef(
+    FRASI_MOTIVAZIONALI[Math.floor(Math.random() * FRASI_MOTIVAZIONALI.length)]
+  )
+
   useEffect(() => {
-    // Sottoscrizione real-time al documento di oggi
-    const ref  = doc(db, 'giorni', todayKey())
+    const ref   = doc(db, 'giorni', todayKey())
     const unsub = onSnapshot(ref, (snap) => {
       if (!snap.exists()) {
-        // Nessun documento per oggi → valori default
-        setSocial(85)
-        setWorkout(45)
-        setWater(75)
-        setSummary('Nessuna task per oggi')
+        setSocial(85); setWorkout(45); setWater(75)
+        setSummary(motivRef.current)
         return
       }
 
-      const d = snap.data()
-
-      // ── Widget percentuali ──────────────────────────────────
+      const d  = snap.data()
       const ch = d.challenge ?? {}
+
+      // ── Widget percentuali ────────────────────────────────
       setSocial(calcSocialPct(ch.social))
       setWorkout(calcWorkoutPct(ch.passi, ch.cyclette, ch.yoga))
       setWater(calcWaterPct(ch.acqua))
 
-      // ── Testo riepilogo: prime 3 task non completate di oggi ──
-      const todos    = d.todos ?? []
-      const attive   = todos.filter(t => !t.done).slice(0, 3)
-      if (attive.length === 0) {
-        setSummary('Nessuna task per oggi')
-      } else {
-        setSummary(attive.map(t => t.text).join(' · '))
-      }
+      // ── Testo riepilogo con grammatica italiana ───────────
+      const attive = (d.todos ?? []).filter(t => !t.done).slice(0, 3)
+      const built  = buildTaskSummary(attive)
+      setSummary(built ?? motivRef.current)
     }, (err) => {
       console.error('onSnapshot ComeVaOggi:', err)
     })
 
-    // Cleanup: cancella la sottoscrizione quando il componente smonta
     return () => unsub()
-  }, []) // solo al mount — todayKey() non cambia durante la sessione
+  }, [])
 
   return (
     <section className={styles.card} aria-label="Come va oggi">

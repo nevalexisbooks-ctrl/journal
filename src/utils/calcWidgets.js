@@ -151,3 +151,73 @@ export function todayWeekIndex() {
   const day = new Date().getDay()
   return day === 0 ? 6 : day - 1
 }
+
+// ════════════════════════════════════════════════════════════════
+//  CALCOLO FASE CICLO
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Calcola la fase del ciclo per una data specifica.
+ *
+ * Logica boundary (ciclo standard 28gg, flusso 5gg):
+ *   Mestruale  → giorno  1 … flusso          (es. 1-5)
+ *   Follicolare → giorno flusso+1 … ovul-1   (es. 6-13)
+ *   Ovulatoria → giorno ovul … ovul+2        (es. 14-16)
+ *   Luteale    → giorno ovul+3 … fine ciclo  (es. 17-28)
+ * dove ovulationDay = cycle - 14  (fase luteale standard = 14 gg)
+ *
+ * TEST: inizio 2026-05-12, ciclo 28, flusso 5, oggi 2026-06-02
+ *   → diffDays=21, dayInCycle=22, Luteale ✓
+ *
+ * @returns {{ phaseIdx, dayInPhase, dayInCycle }}
+ *   phaseIdx: 0=mestruale 1=follicolare 2=ovulatoria 3=luteale
+ *   dayInCycle: giorno assoluto del ciclo (1-based) — da mostrare in UI
+ *   dayInPhase: giorno all'interno della fase corrente
+ */
+export function calcCyclePhase(dataInizio, durataCiclo, durataflusso, viewDate) {
+  const fallback = { phaseIdx: 1, dayInPhase: 1, dayInCycle: 1 }
+  if (!dataInizio) return fallback
+
+  // ── Calcolo DST-safe: confronto solo le parti data in UTC ──────────────
+  const viewKey = toDateKey(viewDate instanceof Date ? viewDate : new Date(viewDate))
+  const [sy, sm, sd] = dataInizio.split('-').map(Number)
+  const [vy, vm, vd] = viewKey.split('-').map(Number)
+  // Math.round evita errori da DST (±1h → ±0.04 giorni, irrilevante)
+  const diffDays = Math.round(
+    (Date.UTC(vy, vm - 1, vd) - Date.UTC(sy, sm - 1, sd)) / 86400000
+  )
+  if (diffDays < 0) return fallback
+
+  const cycle  = Math.max(21, Number(durataCiclo)  || 28)
+  const flusso = Math.max(1,  Number(durataflusso) || 5)
+
+  // Giorno del ciclo: 1-based, si azzera ogni `cycle` giorni
+  // Formula spec: dayInCycle = oggi − dataInizio + 1
+  const dayInCycle = (diffDays % cycle) + 1
+
+  // Boundaries (standard: ovulazione ≈ ciclo − 14 gg)
+  const ovulationDay    = Math.max(flusso + 1, cycle - 14)  // es. 14 per ciclo 28gg
+  const endFollicolare  = ovulationDay - 1                   // es. 13
+  const endOvulatoria   = ovulationDay + 2                   // es. 16
+
+  let phaseIdx, dayInPhase
+  if (dayInCycle <= flusso) {
+    // Mestruale: giorni 1-flusso
+    phaseIdx   = 0
+    dayInPhase = dayInCycle
+  } else if (dayInCycle <= endFollicolare) {
+    // Follicolare: giorni flusso+1 … ovulationDay-1  (es. 6-13)
+    phaseIdx   = 1
+    dayInPhase = dayInCycle - flusso
+  } else if (dayInCycle <= endOvulatoria) {
+    // Ovulatoria: ovulationDay … ovulationDay+2  (es. 14-16)
+    phaseIdx   = 2
+    dayInPhase = dayInCycle - endFollicolare
+  } else {
+    // Luteale: ovulationDay+3 … fine ciclo  (es. 17-28)
+    phaseIdx   = 3
+    dayInPhase = dayInCycle - endOvulatoria
+  }
+
+  return { phaseIdx, dayInPhase, dayInCycle }
+}

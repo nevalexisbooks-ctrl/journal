@@ -1,0 +1,211 @@
+/* ════════════════════════════════════════════════════════════════
+   MonthlyViewScreen
+════════════════════════════════════════════════════════════════ */
+
+.screen { min-height: 100vh; background: var(--bg); }
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+.header {
+  background: var(--header);
+  background-image: linear-gradient(160deg, #96ad91 0%, var(--header) 100%);
+  border-radius: 0 0 32px 32px;
+  padding: 48px 24px 24px;
+  position: relative; text-align: center;
+}
+
+.backBtn {
+  position: absolute; top: 14px; left: 16px;
+  background: none; border: none; cursor: pointer;
+  opacity: 0.85; padding: 4px 6px; display: flex; align-items: center;
+  transition: opacity 0.15s;
+}
+.backBtn:hover { opacity: 1; }
+
+.headerTitle {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2rem; font-weight: 700; color: #fff;
+  line-height: 1.1; margin-bottom: 10px;
+}
+
+.monthNav {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+
+.navArrow {
+  background: rgba(255,255,255,0.2); border: none; color: #fff;
+  font-size: 1rem; font-weight: 700; padding: 4px 10px;
+  border-radius: 8px; cursor: pointer;
+  font-family: 'Open Sans', sans-serif; transition: background 0.15s;
+}
+.navArrow:hover { background: rgba(255,255,255,0.35); }
+
+.monthLabel {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.1rem; font-weight: 600;
+  color: rgba(255,255,255,0.95); min-width: 140px; text-align: center;
+}
+
+/* ── CONTENUTO ───────────────────────────────────────────────── */
+.main {
+  padding: 18px 14px 40px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* ── CALENDARIO ──────────────────────────────────────────────── */
+.calCard {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 16px 14px;
+}
+
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px 2px;
+}
+
+.calHdr {
+  font-size: 0.68rem; font-weight: 700;
+  color: var(--text-muted); text-align: center;
+  padding-bottom: 6px;
+}
+
+.calEmpty { visibility: hidden; }
+
+.calDay {
+  font-size: 0.78rem; font-weight: 600;
+  color: var(--text); text-align: center;
+  padding: 5px 2px; border-radius: 50%;
+  line-height: 1.4; transition: background 0.12s;
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Giorno futuro: stile normale */
+/* Giorno passato con dati: punto indicatore */
+.calHasData { position: relative; }
+.calHasData::after {
+  content: '';
+  position: absolute;
+  bottom: 2px; left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--sage-light);
+}
+
+/* Giorno cliccabile */
+.calClickable { cursor: pointer; }
+.calClickable:hover { background: var(--sage-light); border-radius: 50%; }
+
+/* Oggi: bordo verde salvia */
+.calToday {
+  border: 2px solid var(--header);
+  color: var(--header); font-weight: 800;
+}
+
+/* Fase mestruale: sfondo rosso chiaro */
+.calMestr {
+  background: rgba(232, 128, 128, 0.2);
+  color: #c0392b;
+}
+.calMestr.calToday { border-color: #c0392b; }
+
+/* ── SEZIONE INFERIORE ───────────────────────────────────────── */
+.bottomSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* ── Recap (salvia) ── */
+.recapCard {
+  background: var(--sage-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+}
+
+.quadTitle {
+  font-size: 0.82rem; font-weight: 800;
+  color: var(--text); text-align: center;
+  margin-bottom: 10px;
+}
+
+.recapList {
+  display: flex; flex-direction: column; gap: 5px;
+}
+
+.recapRow {
+  display: flex; justify-content: space-between;
+  align-items: baseline; gap: 4px;
+}
+
+.recapLabel {
+  font-size: 0.65rem; font-weight: 600;
+  color: var(--text-muted); flex-shrink: 0;
+}
+
+.recapVal {
+  font-size: 0.72rem; font-weight: 800;
+  color: var(--text); text-align: right;
+}
+
+.noData {
+  font-size: 0.75rem; color: var(--text-muted);
+  text-align: center; padding: 10px 0;
+}
+
+/* ── Colonna destra ── */
+.rightCol {
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+/* Note (bianco) */
+.noteCard {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+}
+
+.noteArea {
+  width: 100%; background: transparent;
+  border: none; outline: none;
+  resize: none; font-family: 'Open Sans', sans-serif;
+  font-size: 0.78rem; color: var(--text);
+  line-height: 1.9rem; padding: 0;
+  background-image: repeating-linear-gradient(
+    to bottom, transparent 0px,
+    transparent calc(1.9rem - 1px),
+    rgba(0,0,0,0.08) 1px
+  );
+  background-size: 100% 1.9rem;
+}
+.noteArea::placeholder { color: var(--text-muted); }
+
+/* Voto! (sabbia) */
+.votoCard {
+  background: var(--sand);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.votoNum {
+  font-size: 2.2rem; font-weight: 800;
+  color: var(--text); line-height: 1;
+  margin: 6px 0 4px;
+}
+
+.votoSu {
+  font-size: 1rem; font-weight: 600;
+  color: var(--text-muted);
+}
+
+.votoSub {
+  font-size: 0.68rem; color: var(--text-muted); font-weight: 600;
+}
