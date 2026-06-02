@@ -75,13 +75,7 @@
   text-align: center;
 }
 
-/* Avviso data futura */
-.futureNotice {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.75);
-  margin-top: 8px;
-  font-style: italic;
-}
+/* .futureNotice rimossa — nessun messaggio per date future */
 
 /* ── CONTENUTO PRINCIPALE ────────────────────────────────────── */
 .main {
@@ -169,7 +163,65 @@
   font-weight: 800;
 }
 
-.todoText { flex: 1; }
+.todoText { flex: 1; min-width: 0; }
+
+/* ── Selezione mobile (tap) ── */
+.todoSelected { background: rgba(197, 212, 192, 0.25); border-radius: 8px; }
+
+/* ── Azioni: matita + X ── */
+.todoActions {
+  display: none;          /* nascoste di default */
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Desktop: mostra al passaggio del mouse */
+.todoItem:hover .todoActions { display: flex; }
+
+/* Mobile: mostra quando la riga è selezionata */
+.todoActionsVisible { display: flex !important; }
+
+.todoActionBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sage-light);
+  color: var(--text);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.todoActionBtn:hover { background: var(--sand); }
+
+.deleteBtnTodo {
+  background: #fce8e8;
+  color: #c0392b;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+.deleteBtnTodo:hover { background: #f5c6c6; }
+
+/* Input inline modifica testo */
+.todoEditInput {
+  flex: 1;
+  background: var(--bg);
+  border: 1.5px solid var(--header);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  outline: none;
+  min-width: 0;
+}
 
 /* Riga aggiunta task */
 .todoAddRow {

@@ -1,20 +1,30 @@
-// ─── Card "Come va oggi?" ─────────────────────────────────────────────────
-// Mostra i tre widget metriche giornaliere.
-// Le percentuali sono dinamiche: vengono calcolate in DetailScreen
-// e propagate qui tramite la prop `widgetData`.
-// TODO: collegare Firebase — caricare dati reali per ogni metrica
-import React from 'react'
+// ─── Card "Come va oggi?" ──────────────────────────────────────────────────
+// Si abbona in tempo reale al documento di OGGI su Firestore (onSnapshot).
+// Calcola widget e testo riepilogo direttamente dai dati salvati.
+import React, { useState, useEffect } from 'react'
+import { doc, onSnapshot }             from 'firebase/firestore'
+import { db }                           from '../firebase.js'
+import { calcSocialPct, calcWorkoutPct, calcWaterPct } from '../utils/calcWidgets.js'
 import styles from './ComeVaOggiCard.module.css'
 
-/* ── Icona Smartphone (Social) ── */
+// ── Chiave documento di oggi ───────────────────────────────────────────────
+function todayKey() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const g = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${g}`
+}
+
+// ── Icone SVG lineart ─────────────────────────────────────────────────────
 function IconSocial() {
   return (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none"
       stroke="var(--icon-stroke)" strokeWidth="1.5"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="14" y="5" width="20" height="36" rx="4" ry="4" />
+      <rect x="14" y="5"  width="20" height="36" rx="4" ry="4" />
       <rect x="17" y="10" width="14" height="22" rx="1.5" ry="1.5" />
-      <line x1="21" y1="7.5" x2="27" y2="7.5" />
+      <line x1="21" y1="7.5"  x2="27" y2="7.5" />
       <circle cx="24" cy="38" r="1.8" />
       <line x1="20.5" y1="17.5" x2="27.5" y2="24.5" />
       <line x1="27.5" y1="17.5" x2="20.5" y2="24.5" />
@@ -22,7 +32,6 @@ function IconSocial() {
   )
 }
 
-/* ── Icona Manubrio (Workout) ── */
 function IconWorkout() {
   return (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none"
@@ -37,7 +46,6 @@ function IconWorkout() {
   )
 }
 
-/* ── Icona Bottiglia (Acqua) ── */
 function IconWater() {
   return (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none"
@@ -52,7 +60,6 @@ function IconWater() {
   )
 }
 
-/* ── Widget singolo ── */
 function Widget({ icon, percent }) {
   return (
     <div className={styles.widget}>
@@ -62,11 +69,50 @@ function Widget({ icon, percent }) {
   )
 }
 
-/* ── Card principale ─────────────────────────────────────────────────────── */
-// widgetData: { social: number, workout: number, water: number }
-// onInfoClick: apre DetailScreen
-export default function ComeVaOggiCard({ onInfoClick, widgetData = {} }) {
-  const { social = 85, workout = 45, water = 75 } = widgetData
+// ── Componente principale ─────────────────────────────────────────────────
+export default function ComeVaOggiCard({ onInfoClick }) {
+  // Dati live da Firestore (documento di oggi)
+  const [social,   setSocial]   = useState(85)
+  const [workout,  setWorkout]  = useState(45)
+  const [water,    setWater]    = useState(75)
+  const [summary,  setSummary]  = useState('Oggi hai in programma di…')
+
+  useEffect(() => {
+    // Sottoscrizione real-time al documento di oggi
+    const ref  = doc(db, 'giorni', todayKey())
+    const unsub = onSnapshot(ref, (snap) => {
+      if (!snap.exists()) {
+        // Nessun documento per oggi → valori default
+        setSocial(85)
+        setWorkout(45)
+        setWater(75)
+        setSummary('Nessuna task per oggi')
+        return
+      }
+
+      const d = snap.data()
+
+      // ── Widget percentuali ──────────────────────────────────
+      const ch = d.challenge ?? {}
+      setSocial(calcSocialPct(ch.social))
+      setWorkout(calcWorkoutPct(ch.passi, ch.cyclette, ch.yoga))
+      setWater(calcWaterPct(ch.acqua))
+
+      // ── Testo riepilogo: prime 3 task non completate di oggi ──
+      const todos    = d.todos ?? []
+      const attive   = todos.filter(t => !t.done).slice(0, 3)
+      if (attive.length === 0) {
+        setSummary('Nessuna task per oggi')
+      } else {
+        setSummary(attive.map(t => t.text).join(' · '))
+      }
+    }, (err) => {
+      console.error('onSnapshot ComeVaOggi:', err)
+    })
+
+    // Cleanup: cancella la sottoscrizione quando il componente smonta
+    return () => unsub()
+  }, []) // solo al mount — todayKey() non cambia durante la sessione
 
   return (
     <section className={styles.card} aria-label="Come va oggi">
@@ -77,11 +123,10 @@ export default function ComeVaOggiCard({ onInfoClick, widgetData = {} }) {
 
       <h2 className={styles.cardTitle}>Come va oggi?</h2>
 
-      {/* TODO: collegare Firebase — sostituire con riepilogo dinamico del giorno */}
-      <p className={styles.summaryText}>Oggi hai in programma di…</p>
+      {/* Testo dinamico: prime 3 task non completate da Firestore */}
+      <p className={styles.summaryText}>{summary}</p>
 
       <div className={styles.widgetsRow}>
-        {/* Percentuali calcolate in real-time da DetailScreen */}
         <Widget icon={<IconSocial />}  percent={social}  />
         <Widget icon={<IconWorkout />} percent={workout} />
         <Widget icon={<IconWater />}   percent={water}   />

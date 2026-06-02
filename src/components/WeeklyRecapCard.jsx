@@ -1,31 +1,52 @@
-// ─── Card Weekly Recap ────────────────────────────────────────────────────
-// Mostra task settimanali fittizie + striscia giorni con voti
-// TODO: collegare Firebase — caricare task e voti reali della settimana
+// ─── Card Weekly Recap (Homepage) ────────────────────────────────────────────
+// Carica da Firestore:
+//   - giorni/{YYYY-MM-DD} per 7 giorni → calcola voto giornaliero
+//   - settimane/{YYYY-WNN}  → mostra goals settimanali (max 4)
+// Si ricarica al mount (l'app smonta/rimonta questa card quando si torna da
+// DetailScreen o WeeklyRecapScreen, quindi i dati sono sempre aggiornati).
 import React, { useEffect, useState } from 'react'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase.js'
+import {
+  toDateKey, toWeekKey, getMonday, getWeekDays,
+  todayWeekIndex, calcDayScore,
+} from '../utils/calcWidgets.js'
 import styles from './WeeklyRecapCard.module.css'
 
-/* Dati fittizi — TODO: sostituire con query Firestore */
-const TASK_FITTIZIE = [
-  { id: 1, label: 'Meditazione',      done: true  },
-  { id: 2, label: 'Corsa 30 min',     done: true  },
-  { id: 3, label: 'Leggere 20 pag.',  done: false },
-  { id: 4, label: 'No social dopo 22',done: false },
-]
-
-const VOTI_FITTIZI = [9, 8, 7, 4, null, null, null]
-const GIORNI_LABELS = ['L','M','M','G','V','S','D']
-
-/* Ritorna l'indice del giorno corrente (0=lun … 6=dom) */
-function indexGiornoOggi() {
-  const js = new Date().getDay() // 0=dom
-  return js === 0 ? 6 : js - 1
-}
+const GIORNI_LABELS = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
 
 export default function WeeklyRecapCard({ onClick }) {
-  const [todayIdx, setTodayIdx] = useState(0)
+  const [scores, setScores]  = useState(Array(7).fill(null))  // voti 0-6
+  const [goals,  setGoals]   = useState([])                   // goals settimanali
+  const todayIdx             = todayWeekIndex()
 
   useEffect(() => {
-    setTodayIdx(indexGiornoOggi())
+    const monday  = getMonday(new Date())
+    const weekDays = getWeekDays(monday)
+    const weekKey  = toWeekKey(monday)
+
+    // ── Carica voti giornalieri ───────────────────────────────────────
+    async function loadScores() {
+      const promises = weekDays.map(d => getDoc(doc(db, 'giorni', toDateKey(d))))
+      const snaps    = await Promise.all(promises)
+      const calcolati = snaps.map(snap =>
+        snap.exists() ? calcDayScore(snap.data()) : null
+      )
+      setScores(calcolati)
+    }
+
+    // ── Carica goals settimanali ──────────────────────────────────────
+    async function loadGoals() {
+      const snap = await getDoc(doc(db, 'settimane', weekKey))
+      if (snap.exists()) {
+        setGoals(snap.data().goals ?? [])
+      } else {
+        setGoals([])
+      }
+    }
+
+    loadScores()
+    loadGoals()
   }, [])
 
   return (
@@ -40,14 +61,23 @@ export default function WeeklyRecapCard({ onClick }) {
       <p className={styles.title}>Weekly recap</p>
       <p className={styles.sub}>Weekly goal</p>
 
-      {/* Task list — TODO: collegare Firebase */}
+      {/* Goals settimanali (max 4 righe per lo spazio della card) */}
       <ul className={styles.taskList}>
-        {TASK_FITTIZIE.map((t) => (
-          <li key={t.id} className={t.done ? styles.taskDone : ''}>
-            <div className={`${styles.checkbox} ${t.done ? styles.checked : ''}`} />
-            {t.label}
-          </li>
-        ))}
+        {goals.length > 0
+          ? goals.slice(0, 4).map((g) => (
+              <li key={g.id} className={g.done ? styles.taskDone : ''}>
+                <div className={`${styles.checkbox} ${g.done ? styles.checked : ''}`} />
+                {g.text}
+              </li>
+            ))
+          : /* Placeholder se non ci sono goals */
+            [1, 2, 3, 4].map(i => (
+              <li key={i} className={styles.taskPlaceholder}>
+                <div className={styles.checkbox} />
+                <span>—</span>
+              </li>
+            ))
+        }
       </ul>
 
       {/* Striscia giorni + voti */}
@@ -59,9 +89,8 @@ export default function WeeklyRecapCard({ onClick }) {
               className={`${styles.weekCell} ${i === todayIdx ? styles.today : ''}`}
             >
               <span className={styles.weekLetter}>{g}</span>
-              {/* TODO: collegare Firebase — voti reali */}
               <span className={styles.weekScore}>
-                {VOTI_FITTIZI[i] !== null ? VOTI_FITTIZI[i] : '·'}
+                {scores[i] !== null ? scores[i] : '·'}
               </span>
             </div>
           ))}

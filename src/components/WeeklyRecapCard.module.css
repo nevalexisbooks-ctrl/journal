@@ -46,6 +46,8 @@
   text-decoration: line-through;
 }
 
+.taskPlaceholder { color: var(--text-muted) !important; opacity: 0.5; }
+
 /* Checkbox stilizzata */
 .checkbox {
   width: 14px;

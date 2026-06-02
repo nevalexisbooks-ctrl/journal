@@ -1,0 +1,287 @@
+/* ════════════════════════════════════════════════════════════════
+   WeeklyRecapScreen
+════════════════════════════════════════════════════════════════ */
+
+.screen { min-height: 100vh; background: var(--bg); }
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+.header {
+  background: var(--header);
+  background-image: linear-gradient(160deg, #96ad91 0%, var(--header) 100%);
+  border-radius: 0 0 32px 32px;
+  padding: 48px 24px 24px;
+  position: relative;
+  text-align: center;
+}
+
+.backBtn {
+  position: absolute;
+  top: 14px; left: 16px;
+  background: none; border: none;
+  cursor: pointer; opacity: 0.85;
+  padding: 4px 6px;
+  display: flex; align-items: center;
+  transition: opacity 0.15s;
+}
+.backBtn:hover { opacity: 1; }
+
+.headerTitle {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2rem; font-weight: 700;
+  color: #fff; line-height: 1.1;
+  margin-bottom: 12px;
+}
+
+.weekNav {
+  display: flex; align-items: center;
+  justify-content: center; gap: 12px;
+}
+
+.navArrow {
+  background: rgba(255,255,255,0.2); border: none;
+  color: #fff; font-size: 1rem; font-weight: 700;
+  padding: 4px 10px; border-radius: 8px;
+  cursor: pointer; font-family: 'Open Sans', sans-serif;
+  transition: background 0.15s;
+}
+.navArrow:hover { background: rgba(255,255,255,0.35); }
+
+.weekLabel {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1rem; font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  min-width: 150px; text-align: center;
+}
+
+/* ── CONTENUTO ───────────────────────────────────────────────── */
+.main {
+  padding: 18px 14px 40px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* ── CARD BASE ───────────────────────────────────────────────── */
+.cardWhite {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.cardSand {
+  background: var(--sand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 16px;
+}
+
+.blockTitle {
+  font-size: 1rem; font-weight: 800;
+  text-align: center; color: var(--text);
+  margin-bottom: 14px;
+}
+
+/* ── STRISCIA VOTI ───────────────────────────────────────────── */
+.scoreStrip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.scoreCell {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 5px;
+}
+
+.scoreLetter {
+  font-size: 0.72rem; font-weight: 700;
+  color: var(--text-muted);
+}
+
+.scoreToday .scoreLetter {
+  color: #c0392b; font-weight: 800;
+}
+
+.scoreValue {
+  font-size: 1rem; font-weight: 800;
+  color: var(--text);
+}
+
+/* ── GOALS ───────────────────────────────────────────────────── */
+.goalList {
+  list-style: none;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.goalItem {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.88rem; font-weight: 600;
+  color: var(--text);
+  padding: 3px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.goalDone .goalText {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.goalSelected { background: rgba(197, 212, 192, 0.3); }
+
+/* Checkbox goal */
+.goalCheck {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 2px solid rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.5);
+  flex-shrink: 0; cursor: pointer;
+  position: relative;
+  transition: background 0.15s;
+}
+.goalChecked { background: var(--header); border-color: var(--header); }
+.goalChecked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff; font-size: 0.7rem; font-weight: 800;
+}
+
+.goalText { flex: 1; min-width: 0; }
+
+/* Azioni matita + X */
+.goalActions {
+  display: none; align-items: center; gap: 4px;
+  margin-left: auto; flex-shrink: 0;
+}
+.goalItem:hover .goalActions { display: flex; }
+.goalActionsVisible { display: flex !important; }
+
+.actionBtn {
+  width: 26px; height: 26px;
+  border-radius: 7px; border: none;
+  cursor: pointer; font-size: 0.72rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--sage-light); color: var(--text);
+  transition: background 0.15s; flex-shrink: 0;
+}
+.actionBtn:hover { background: #b8ccb3; }
+
+.actionDelete {
+  background: #fce8e8; color: #c0392b;
+  font-size: 0.65rem; font-weight: 800;
+}
+.actionDelete:hover { background: #f5c6c6; }
+
+.goalEditInput {
+  flex: 1; min-width: 0;
+  background: rgba(255,255,255,0.6);
+  border: 1.5px solid var(--header);
+  border-radius: 6px;
+  color: var(--text); font-family: inherit;
+  font-size: 0.88rem; font-weight: 600;
+  padding: 3px 8px; outline: none;
+}
+
+/* Riga aggiunta */
+.goalAddRow { margin-top: 4px; }
+
+.addBtn {
+  background: none; border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem; letter-spacing: 3px;
+  cursor: pointer; padding: 2px 0;
+  transition: color 0.15s;
+}
+.addBtn:hover { color: var(--text); }
+
+.goalInput {
+  width: 100%;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 8px; color: var(--text);
+  font-family: inherit; font-size: 0.88rem;
+  padding: 6px 10px; outline: none;
+  transition: border-color 0.15s;
+}
+.goalInput:focus { border-color: var(--header); }
+
+/* ── QUADRANTI 2×2 ───────────────────────────────────────────── */
+.twoByTwo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.quadSage {
+  background: var(--sage-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+  /* Menu è lungo: scrollabile */
+  max-height: 420px;
+  overflow-y: auto;
+}
+.quadSage::-webkit-scrollbar { width: 3px; }
+.quadSage::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+
+.quadWhite {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 12px;
+}
+
+.quadTitle {
+  font-size: 0.82rem; font-weight: 800;
+  color: var(--text); text-align: center;
+  margin-bottom: 10px;
+}
+
+/* ── Menu ── */
+.menuList { display: flex; flex-direction: column; gap: 10px; }
+
+.menuDay {}
+
+.menuDayName {
+  font-size: 0.75rem; font-weight: 800;
+  color: var(--text); margin-bottom: 5px;
+}
+
+.menuRow {
+  display: flex; align-items: center;
+  gap: 5px; margin-bottom: 4px;
+}
+
+.menuLabel {
+  font-size: 0.68rem; font-weight: 600;
+  color: var(--text-muted); width: 38px; flex-shrink: 0;
+}
+
+.menuInput {
+  flex: 1;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 6px; color: var(--text);
+  font-family: inherit; font-size: 0.72rem;
+  padding: 4px 6px; outline: none;
+  transition: border-color 0.15s;
+}
+.menuInput:focus { border-color: var(--header); }
+
+/* ── Note ── */
+.noteArea {
+  width: 100%; background: transparent;
+  border: none; outline: none;
+  resize: none; font-family: 'Open Sans', sans-serif;
+  font-size: 0.82rem; color: var(--text);
+  line-height: 2rem; padding: 0;
+  background-image: repeating-linear-gradient(
+    to bottom, transparent 0px,
+    transparent calc(2rem - 1px),
+    rgba(139,106,60,0.15) 1px
+  );
+  background-size: 100% 2rem;
+  min-height: 200px;
+}
+.noteArea::placeholder { color: var(--text-muted); }
