@@ -2,9 +2,10 @@
 // Prima di ogni invio raccoglie da Firestore:
 //   - Ultimi 4 giorni da giorni/{YYYY-MM-DD}
 //   - Goals e note settimanali da settimane/{YYYY-WNN}  (NON il menù)
-//   - System prompt da settings/aiPrompt
-// La cronologia è in memoria React (non salvata su Firestore).
-// API: Anthropic Claude Messages via fetch (browser-side, chiave in localStorage 'gemini_api_key')
+//   - Profilo utente da localStorage 'user_profile'
+//   - System prompt da localStorage 'ai_system_prompt'
+// La chiamata API passa per la Firebase Function claudeProxy (nessun CORS).
+// La cronologia messaggi è in memoria React (non salvata su Firestore).
 import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
@@ -13,14 +14,18 @@ import {
 } from '../utils/calcWidgets.js'
 import styles from './ChatScreen.module.css'
 
-// ── Default prompt se non configurato ─────────────────────────────────────
+// ── Endpoint Firebase Function proxy ──────────────────────────────────────────
+const PROXY_URL = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
+const CLAUDE_MODEL = 'claude-opus-4-6'
+
+// ── System prompt di default ───────────────────────────────────────────────────
 const DEFAULT_SYSTEM =
   'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
   'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto. ' +
   'Rispondi sempre in italiano.'
 
 // ════════════════════════════════════════════════════════════════
-//  RACCOLTA CONTESTO DA FIRESTORE
+//  RACCOLTA CONTESTO DA FIRESTORE + localStorage
 // ════════════════════════════════════════════════════════════════
 
 async function buildSystemPrompt() {
@@ -33,23 +38,21 @@ async function buildSystemPrompt() {
     return d
   })
   const dayKeys = last4.map(d => toDateKey(d))
-
-  // Settimana corrente
   const weekKey = toWeekKey(today)
 
-  // Carica tutto in parallelo
-  const [daySnaps, weekSnap, promptSnap] = await Promise.all([
+  const [daySnaps, weekSnap] = await Promise.all([
     Promise.all(dayKeys.map(k => getDoc(doc(db, 'giorni', k)))),
     getDoc(doc(db, 'settimane', weekKey)),
-    getDoc(doc(db, 'settings', 'aiPrompt')),
   ])
 
-  const basePrompt = promptSnap.exists()
-    ? (promptSnap.data().prompt ?? DEFAULT_SYSTEM)
-    : DEFAULT_SYSTEM
+  // ── System prompt da localStorage ────────────────────────────
+  const basePrompt = localStorage.getItem('ai_system_prompt')?.trim() || DEFAULT_SYSTEM
 
-  // Profilo utente da localStorage (può essere vuoto)
+  // ── Profilo utente da localStorage ───────────────────────────
   const userProfile = localStorage.getItem('user_profile')?.trim() ?? ''
+  const profileSection = userProfile
+    ? `\n\n=== Chi sono ===\n${userProfile}\n`
+    : ''
 
   // ── Formatta contesto giorni ──────────────────────────────────
   let ctx = '\n\n=== Dati degli ultimi 4 giorni ===\n'
@@ -94,11 +97,8 @@ async function buildSystemPrompt() {
       }
 
       const habits = (d.habits ?? []).filter(h => h.done)
-      if (habits.length > 0) {
-        ctx += `  Small habits: ${habits.map(h => h.text).join(', ')}\n`
-      }
-
-      if (d.note?.trim()) ctx += `  Note: "${d.note.trim()}"\n`
+      if (habits.length > 0) ctx += `  Small habits: ${habits.map(h => h.text).join(', ')}\n`
+      if (d.note?.trim())    ctx += `  Note: "${d.note.trim()}"\n`
     }
   })
 
@@ -108,45 +108,23 @@ async function buildSystemPrompt() {
     const goals = wData.goals ?? []
     if (goals.length > 0) {
       ctx += '\n=== Obiettivi settimanali ===\n'
-      goals.forEach(g => {
-        ctx += `${g.done ? '[✓]' : '[ ]'} ${g.text}\n`
-      })
+      goals.forEach(g => { ctx += `${g.done ? '[✓]' : '[ ]'} ${g.text}\n` })
     }
     // NON includere il menù (privato)
-    if (wData.note?.trim()) {
-      ctx += `\nNote settimana: "${wData.note.trim()}"\n`
-    }
-  }
-
-  let profileSection = ''
-  if (userProfile) {
-    profileSection = `\n\n=== Chi sono ===\n${userProfile}\n`
+    if (wData.note?.trim()) ctx += `\nNote settimana: "${wData.note.trim()}"\n`
   }
 
   return basePrompt + profileSection + ctx
 }
 
 // ════════════════════════════════════════════════════════════════
-//  CHIAMATA API ANTHROPIC CLAUDE
+//  CHIAMATA AL PROXY FIREBASE
 // ════════════════════════════════════════════════════════════════
 
-const CLAUDE_MODEL = 'claude-opus-4-6'
-
-async function callClaude(messages, systemPrompt) {
-  const apiKey = localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY
-
-  if (!apiKey) {
-    throw new Error('NO_API_KEY')
-  }
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+async function callProxy(messages, systemPrompt) {
+  const res = await fetch(PROXY_URL, {
     method: 'POST',
-    headers: {
-      'x-api-key':             apiKey,
-      'anthropic-version':     '2023-06-01',
-      'content-type':          'application/json',
-      'anthropic-dangerous-request-browser': 'true',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model:      CLAUDE_MODEL,
       max_tokens: 1024,
@@ -161,6 +139,7 @@ async function callClaude(messages, systemPrompt) {
   }
 
   const data = await res.json()
+  if (data.error) throw new Error(data.error.message ?? 'Errore dal server')
   return data.content[0].text
 }
 
@@ -168,11 +147,7 @@ async function callClaude(messages, systemPrompt) {
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
-const API_KEY_MISSING = !localStorage.getItem('gemini_api_key') && !import.meta.env.VITE_GEMINI_API_KEY
-
-const WELCOME_MSG = API_KEY_MISSING
-  ? 'Configura la tua API key nelle Impostazioni per usare l\'assistente.'
-  : 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
+const WELCOME_MSG = 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
 
 export default function ChatScreen({ onBack }) {
   const [messages, setMessages] = useState([
@@ -181,8 +156,8 @@ export default function ChatScreen({ onBack }) {
   const [input,   setInput]   = useState('')
   const [loading, setLoading] = useState(false)
 
-  const bottomRef   = useRef(null)
-  const inputRef    = useRef(null)
+  const bottomRef = useRef(null)
+  const inputRef  = useRef(null)
 
   // Scroll automatico all'ultimo messaggio
   useEffect(() => {
@@ -193,7 +168,6 @@ export default function ChatScreen({ onBack }) {
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
-    if (API_KEY_MISSING) return
 
     const userMsg = { role: 'user', content: text }
     setMessages(prev => [...prev, userMsg])
@@ -201,20 +175,19 @@ export default function ChatScreen({ onBack }) {
     setLoading(true)
 
     try {
-      // Costruisci history per l'API (escludi il messaggio di benvenuto del bot)
-      const apiHistory = [...messages.filter(m => !(m.role === 'assistant' && m === messages[0])), userMsg]
-
+      // History per l'API: escludi il messaggio di benvenuto iniziale
+      const apiHistory = [
+        ...messages.filter((_, i) => i > 0),
+        userMsg,
+      ]
       const systemPrompt = await buildSystemPrompt()
-      const reply = await callClaude(
-        apiHistory.map(m => ({ role: m.role, content: m.content })),
-        systemPrompt
-      )
+      const reply = await callProxy(apiHistory, systemPrompt)
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (err) {
-      const errMsg = err.message === 'NO_API_KEY'
-        ? 'API key non configurata. Aggiungi VITE_GEMINI_API_KEY nel file .env'
-        : `Errore: ${err.message}`
-      setMessages(prev => [...prev, { role: 'assistant', content: errMsg }])
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Si è verificato un errore: ${err.message}`,
+      }])
     } finally {
       setLoading(false)
       inputRef.current?.focus()
@@ -257,7 +230,7 @@ export default function ChatScreen({ onBack }) {
           </div>
         ))}
 
-        {/* Indicatore "sta scrivendo..." */}
+        {/* Indicatore "sta scrivendo…" */}
         {loading && (
           <div className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.bubbleTyping}`}>
             <span className={styles.dot} />
@@ -279,12 +252,12 @@ export default function ChatScreen({ onBack }) {
           onKeyDown={handleKeyDown}
           placeholder="Scrivi un messaggio…"
           rows={1}
-          disabled={loading || API_KEY_MISSING}
+          disabled={loading}
         />
         <button
           className={styles.sendBtn}
           onClick={send}
-          disabled={loading || !input.trim() || API_KEY_MISSING}
+          disabled={loading || !input.trim()}
           aria-label="Invia"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"

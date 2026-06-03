@@ -1,9 +1,8 @@
 // ─── SettingsScreen ───────────────────────────────────────────────────────────
-// Gestisce: calendario ciclo, small habits, prompt AI, manutenzione dati.
+// Gestisce: chi sono, calendario ciclo, small habits, manutenzione dati.
 // Firestore:
 //   settings/ciclo   → { dataInizio, durataCiclo, durataflusso }
 //   settings/habits  → { habits: [{id, text, startDate, endDate}] }
-//   settings/aiPrompt → { prompt }
 import React, { useState, useEffect, useRef } from 'react'
 import {
   doc, getDoc, setDoc,
@@ -11,11 +10,6 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import styles from './SettingsScreen.module.css'
-
-// ─── Default AI prompt ────────────────────────────────────────────────────────
-const DEFAULT_AI_PROMPT =
-  'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
-  'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto.'
 
 // ════════════════════════════════════════════════════════════════════════════
 //  COMPONENTE PRINCIPALE
@@ -47,22 +41,32 @@ export default function SettingsScreen({ onBack }) {
   // ── Habits ────────────────────────────────────────────────────────────────
   const [habits,      setHabits]      = useState([])
 
-  // ── AI Prompt ─────────────────────────────────────────────────────────────
-  const [aiPrompt,    setAiPrompt]    = useState(DEFAULT_AI_PROMPT)
+  // ── Prompt AI (localStorage) ──────────────────────────────────────────────
+  const [aiPrompt,     setAiPrompt]     = useState(
+    () => localStorage.getItem('ai_system_prompt') ??
+      'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
+      'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto. ' +
+      'Rispondi sempre in italiano.'
+  )
+  const [promptSaved,  setPromptSaved]  = useState(false)
+  const promptTimerRef = useRef(null)
 
-  // ── Gemini API Key (localStorage) ─────────────────────────────────────────
-  const [geminiKey,     setGeminiKey]     = useState(() => localStorage.getItem('gemini_api_key') ?? '')
-  const [showGeminiKey, setShowGeminiKey] = useState(false)
-  const [geminiSaved,   setGeminiSaved]   = useState(false)
+  useEffect(() => {
+    clearTimeout(promptTimerRef.current)
+    promptTimerRef.current = setTimeout(() => {
+      localStorage.setItem('ai_system_prompt', aiPrompt)
+      setPromptSaved(true)
+      setTimeout(() => setPromptSaved(false), 1500)
+    }, 800)
+    return () => clearTimeout(promptTimerRef.current)
+  }, [aiPrompt])
 
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading,     setLoading]     = useState(true)
 
   // ── Refs debounce ─────────────────────────────────────────────────────────
   const habitsTimerRef   = useRef(null)
-  const promptTimerRef   = useRef(null)
   const habitsReadyRef   = useRef(false)
-  const promptReadyRef   = useRef(false)
 
   // ════════════════════════════════════════════════════════════════
   //  CARICAMENTO INIZIALE
@@ -71,14 +75,12 @@ export default function SettingsScreen({ onBack }) {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const [cicloSnap, habitsSnap, promptSnap] = await Promise.all([
+        const [cicloSnap, habitsSnap] = await Promise.all([
           getDoc(doc(db, 'settings', 'ciclo')),
           getDoc(doc(db, 'settings', 'habits')),
-          getDoc(doc(db, 'settings', 'aiPrompt')),
         ])
         if (cicloSnap.exists())  setCiclo(cicloSnap.data())
         if (habitsSnap.exists()) setHabits(habitsSnap.data().habits ?? [])
-        if (promptSnap.exists()) setAiPrompt(promptSnap.data().prompt ?? DEFAULT_AI_PROMPT)
       } catch (err) {
         console.error('Errore caricamento settings:', err)
       } finally {
@@ -86,7 +88,6 @@ export default function SettingsScreen({ onBack }) {
         // Attiva auto-save dopo il caricamento
         setTimeout(() => {
           habitsReadyRef.current = true
-          promptReadyRef.current = true
         }, 50)
       }
     }
@@ -107,21 +108,6 @@ export default function SettingsScreen({ onBack }) {
     }, 700)
     return () => clearTimeout(habitsTimerRef.current)
   }, [habits])
-
-  // ════════════════════════════════════════════════════════════════
-  //  AUTO-SAVE AI PROMPT (debounced 1000ms)
-  // ════════════════════════════════════════════════════════════════
-
-  useEffect(() => {
-    if (!promptReadyRef.current) return
-    clearTimeout(promptTimerRef.current)
-    promptTimerRef.current = setTimeout(async () => {
-      try {
-        await setDoc(doc(db, 'settings', 'aiPrompt'), { prompt: aiPrompt }, { merge: true })
-      } catch (err) { console.error('Errore salvataggio prompt:', err) }
-    }, 1000)
-    return () => clearTimeout(promptTimerRef.current)
-  }, [aiPrompt])
 
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — CICLO
@@ -192,7 +178,7 @@ export default function SettingsScreen({ onBack }) {
   const resetData = async () => {
     const ok = window.confirm(
       '⚠️ Sei sicura? Questa azione eliminerà TUTTI i dati di "giorni" e "settimane".\n' +
-      'Le impostazioni (ciclo, habits, prompt) verranno mantenute.\n\n' +
+      'Le impostazioni (ciclo, habits) verranno mantenute.\n\n' +
       'Premi OK per confermare.'
     )
     if (!ok) return
@@ -215,16 +201,6 @@ export default function SettingsScreen({ onBack }) {
   }
 
   const forceReload = () => window.location.reload(true)
-
-  // ════════════════════════════════════════════════════════════════
-  //  HANDLER — GEMINI API KEY
-  // ════════════════════════════════════════════════════════════════
-
-  const saveGeminiKey = () => {
-    localStorage.setItem('gemini_api_key', geminiKey.trim())
-    setGeminiSaved(true)
-    setTimeout(() => setGeminiSaved(false), 2500)
-  }
 
   // ════════════════════════════════════════════════════════════════
   //  RENDER
@@ -390,7 +366,7 @@ export default function SettingsScreen({ onBack }) {
         <section className={styles.cardWhite}>
           <h2 className={styles.blockTitle}>Prompt Assistente</h2>
           <p className={styles.blockSub}>
-            Questo testo viene inviato come istruzione di sistema alla chat AI.
+            Questo testo viene inviato come istruzione di sistema all'assistente AI.
           </p>
           <textarea
             className={styles.promptArea}
@@ -398,35 +374,11 @@ export default function SettingsScreen({ onBack }) {
             onChange={e => setAiPrompt(e.target.value)}
             rows={6}
           />
-          <p className={styles.autoSaveNote}>Salvataggio automatico</p>
-
-          <div className={styles.apiKeySection}>
-            <label className={styles.fieldLabel}>API Key Gemini</label>
-            <div className={styles.apiKeyRow}>
-              <input
-                className={`${styles.fieldInput} ${styles.apiKeyInput}`}
-                type={showGeminiKey ? 'text' : 'password'}
-                value={geminiKey}
-                onChange={e => setGeminiKey(e.target.value)}
-                placeholder="Incolla la tua API key…"
-                autoComplete="off"
-              />
-              <button
-                className={styles.btnToggleKey}
-                onClick={() => setShowGeminiKey(v => !v)}
-                type="button"
-                aria-label={showGeminiKey ? 'Nascondi chiave' : 'Mostra chiave'}
-              >
-                {showGeminiKey ? '🙈' : '👁'}
-              </button>
-            </div>
-            <button
-              className={`${styles.btnPrimary} ${geminiSaved ? styles.btnSaved : ''}`}
-              onClick={saveGeminiKey}
-              style={{ marginTop: 10 }}
-            >
-              {geminiSaved ? '✓ Salvata' : 'Salva chiave'}
-            </button>
+          <p className={styles.autoSaveNote}>
+            {promptSaved ? '✓ Salvato' : 'Salvataggio automatico'}
+          </p>
+          <div className={styles.apiKeyNote}>
+            🔒 La chiave API è configurata in modo sicuro sul server
           </div>
         </section>
 
