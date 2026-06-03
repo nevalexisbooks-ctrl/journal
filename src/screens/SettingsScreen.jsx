@@ -19,10 +19,7 @@ import styles from './SettingsScreen.module.css'
 export default function SettingsScreen({ onBack }) {
 
   // ── Chi sono (Firestore settings/profilo) ────────────────────────────────
-  const [userProfile,      setUserProfile]      = useState('')
-  const [profileSaved,     setProfileSaved]     = useState(false)
-  const profileTimerRef  = useRef(null)
-  const profileReadyRef  = useRef(false)
+  const [userProfile, setUserProfile] = useState('')
 
   // Carica profilo da Firestore (con fallback a localStorage per migrazione)
   useEffect(() => {
@@ -32,31 +29,14 @@ export default function SettingsScreen({ onBack }) {
         if (snap.exists()) {
           setUserProfile(snap.data().testo ?? '')
         } else {
-          // Migrazione da localStorage
           setUserProfile(localStorage.getItem('user_profile') ?? '')
         }
-      } catch (err) {
+      } catch {
         setUserProfile(localStorage.getItem('user_profile') ?? '')
-      } finally {
-        setTimeout(() => { profileReadyRef.current = true }, 50)
       }
     }
     loadProfilo()
   }, [])
-
-  // Auto-save profilo su Firestore 800ms dopo l'ultima modifica
-  useEffect(() => {
-    if (!profileReadyRef.current) return
-    clearTimeout(profileTimerRef.current)
-    profileTimerRef.current = setTimeout(async () => {
-      try {
-        await setDoc(doc(db, 'settings', 'profilo'), { testo: userProfile }, { merge: true })
-        setProfileSaved(true)
-        setTimeout(() => setProfileSaved(false), 1500)
-      } catch (err) { console.error('Errore salvataggio profilo:', err) }
-    }, 800)
-    return () => clearTimeout(profileTimerRef.current)
-  }, [userProfile])
 
   // ── Ciclo ─────────────────────────────────────────────────────────────────
   const [ciclo,       setCiclo]       = useState({ dataInizio: '', durataCiclo: 28, durataflusso: 5 })
@@ -66,25 +46,16 @@ export default function SettingsScreen({ onBack }) {
   // ── Habits ────────────────────────────────────────────────────────────────
   const [habits,      setHabits]      = useState([])
 
-  // ── Prompt AI (localStorage) ──────────────────────────────────────────────
-  const [aiPrompt,     setAiPrompt]     = useState(
-    () => localStorage.getItem('ai_system_prompt') ??
-      'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
-      'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto. ' +
-      'Rispondi sempre in italiano.'
-  )
-  const [promptSaved,  setPromptSaved]  = useState(false)
-  const promptTimerRef = useRef(null)
+  // ── Prompt AI (Firestore settings/aiPrompt) ───────────────────────────────
+  const DEFAULT_PROMPT =
+    'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
+    'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto. ' +
+    'Rispondi sempre in italiano.'
+  const [aiPrompt, setAiPrompt] = useState('')
 
-  useEffect(() => {
-    clearTimeout(promptTimerRef.current)
-    promptTimerRef.current = setTimeout(() => {
-      localStorage.setItem('ai_system_prompt', aiPrompt)
-      setPromptSaved(true)
-      setTimeout(() => setPromptSaved(false), 1500)
-    }, 800)
-    return () => clearTimeout(promptTimerRef.current)
-  }, [aiPrompt])
+  // ── Stato salvataggio impostazioni ────────────────────────────────────────
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsSaved,  setSettingsSaved]  = useState(false)
 
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading,     setLoading]     = useState(true)
@@ -100,24 +71,36 @@ export default function SettingsScreen({ onBack }) {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const [cicloSnap, habitsSnap] = await Promise.all([
+        const [cicloSnap, habitsSnap, profiloSnap, promptSnap] = await Promise.all([
           getDoc(doc(db, 'settings', 'ciclo')),
           getDoc(doc(db, 'settings', 'habits')),
+          getDoc(doc(db, 'settings', 'profilo')),
+          getDoc(doc(db, 'settings', 'aiPrompt')),
         ])
-        if (cicloSnap.exists())  setCiclo(cicloSnap.data())
-        if (habitsSnap.exists()) setHabits(habitsSnap.data().habits ?? [])
+        if (cicloSnap.exists())   setCiclo(cicloSnap.data())
+        if (habitsSnap.exists())  setHabits(habitsSnap.data().habits ?? [])
+        // Profilo: Firestore → localStorage → stringa vuota
+        if (profiloSnap.exists()) {
+          setUserProfile(profiloSnap.data().testo ?? '')
+        } else {
+          setUserProfile(localStorage.getItem('user_profile') ?? '')
+        }
+        // Prompt: Firestore → localStorage → default
+        if (promptSnap.exists()) {
+          setAiPrompt(promptSnap.data().testo ?? promptSnap.data().prompt ?? DEFAULT_PROMPT)
+        } else {
+          setAiPrompt(localStorage.getItem('ai_system_prompt') ?? DEFAULT_PROMPT)
+        }
       } catch (err) {
         console.error('Errore caricamento settings:', err)
+        setAiPrompt(DEFAULT_PROMPT)
       } finally {
         setLoading(false)
-        // Attiva auto-save dopo il caricamento
-        setTimeout(() => {
-          habitsReadyRef.current = true
-        }, 50)
+        setTimeout(() => { habitsReadyRef.current = true }, 50)
       }
     }
     loadSettings()
-  }, [])
+  }, []) // eslint-disable-line
 
   // ════════════════════════════════════════════════════════════════
   //  AUTO-SAVE HABITS (debounced 700ms)
@@ -239,6 +222,23 @@ export default function SettingsScreen({ onBack }) {
     }
   }
 
+  const saveImpostazioni = async () => {
+    setSettingsSaving(true)
+    try {
+      await Promise.all([
+        setDoc(doc(db, 'settings', 'profilo'),  { testo: userProfile }, { merge: true }),
+        setDoc(doc(db, 'settings', 'aiPrompt'), { testo: aiPrompt },    { merge: true }),
+      ])
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2000)
+    } catch (err) {
+      console.error('Errore salvataggio impostazioni:', err)
+      alert('Errore durante il salvataggio: ' + err.message)
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
   // ════════════════════════════════════════════════════════════════
   //  RENDER
   // ════════════════════════════════════════════════════════════════
@@ -289,9 +289,6 @@ export default function SettingsScreen({ onBack }) {
             rows={5}
             placeholder="Nome, età, stile di vita, obiettivi, preferenze…"
           />
-          <p className={styles.autoSaveNote}>
-            {profileSaved ? '✓ Salvato' : 'Salvataggio automatico'}
-          </p>
         </section>
 
         {/* ── CALENDARIO DEL CICLO ────────────────────────────── */}
@@ -411,9 +408,6 @@ export default function SettingsScreen({ onBack }) {
             onChange={e => setAiPrompt(e.target.value)}
             rows={6}
           />
-          <p className={styles.autoSaveNote}>
-            {promptSaved ? '✓ Salvato' : 'Salvataggio automatico'}
-          </p>
           <div className={styles.apiKeyNote}>
             🔒 La chiave API è configurata in modo sicuro sul server
           </div>
@@ -449,6 +443,20 @@ export default function SettingsScreen({ onBack }) {
         </section>
 
       </main>
+
+      {/* ── PULSANTE SALVA IMPOSTAZIONI ──────────────────────── */}
+      <div className={styles.saveSettingsWrapper}>
+        {settingsSaved && (
+          <p className={styles.saveSettingsConfirm}>✓ Impostazioni salvate!</p>
+        )}
+        <button
+          className={styles.btnSaveSettings}
+          onClick={saveImpostazioni}
+          disabled={settingsSaving}
+        >
+          {settingsSaving ? 'Salvataggio…' : 'Salva Impostazioni'}
+        </button>
+      </div>
 
       <p className={styles.appVersion}>v{packageJson.version}</p>
     </div>

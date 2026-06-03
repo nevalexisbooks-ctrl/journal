@@ -285,8 +285,26 @@ export default function ChatScreen({ onBack }) {
     }
   }
 
+  // ── Auto-resize textarea ────────────────────────────────────
+  const LINE_HEIGHT = 22   // px, deve corrispondere al CSS
+  const MIN_ROWS    = 4
+  const MAX_ROWS    = 6
+
+  const autoResize = (el) => {
+    if (!el) return
+    el.style.height = 'auto'
+    const maxH = LINE_HEIGHT * MAX_ROWS + 20  // +20 per padding verticale
+    el.style.height = Math.min(el.scrollHeight, maxH) + 'px'
+  }
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value)
+    autoResize(e.target)
+  }
+
+  // Ctrl+Enter invia; Enter normale va a capo (mobile: solo pulsante)
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault()
       send()
     }
@@ -338,10 +356,10 @@ export default function ChatScreen({ onBack }) {
           ref={inputRef}
           className={styles.inputField}
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Scrivi un messaggio…"
-          rows={1}
+          placeholder="Scrivi un messaggio… (Ctrl+Invio per inviare)"
+          rows={4}
           disabled={loading}
         />
 
