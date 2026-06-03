@@ -364,7 +364,7 @@ export default function ChatScreen({ onBack }) {
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Scrivi un messaggio… (Ctrl+Invio per inviare)"
+          placeholder="Scrivi un messaggio…"
           rows={1}
           disabled={loading}
         />
