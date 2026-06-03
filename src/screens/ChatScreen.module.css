@@ -115,14 +115,14 @@
   color: var(--text);
   font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
-  line-height: 22px;          /* deve coincidere con LINE_HEIGHT in JS */
+  line-height: 22px;                    /* coincide con JS: 22px */
   padding: 10px 14px;
   resize: none;
   outline: none;
-  min-height: calc(22px * 4 + 20px);   /* 4 righe + padding */
-  max-height: calc(22px * 6 + 20px);   /* max 6 righe */
+  min-height: calc(22px + 20px);        /* 1 riga + padding verticale */
+  max-height: calc(22px * 5 + 20px);   /* max 5 righe */
   overflow-y: auto;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, height 0.1s ease;
 }
 .inputField:focus { border-color: var(--header); }
 .inputField::placeholder { color: var(--text-muted); font-size: 0.82rem; }

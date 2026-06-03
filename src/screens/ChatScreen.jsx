@@ -286,16 +286,22 @@ export default function ChatScreen({ onBack }) {
   }
 
   // ── Auto-resize textarea ────────────────────────────────────
-  const LINE_HEIGHT = 22   // px, deve corrispondere al CSS
-  const MIN_ROWS    = 4
-  const MAX_ROWS    = 6
+  // line-height 22px + padding verticale 20px (10px top + 10px bottom)
+  const SINGLE_ROW_H = 22 + 20   // altezza di 1 riga
+  const MAX_H        = 22 * 5 + 20  // massimo 5 righe
 
   const autoResize = (el) => {
     if (!el) return
-    el.style.height = 'auto'
-    const maxH = LINE_HEIGHT * MAX_ROWS + 20  // +20 per padding verticale
-    el.style.height = Math.min(el.scrollHeight, maxH) + 'px'
+    el.style.height = 'auto'                          // reset → scrollHeight si ricalcola
+    el.style.height = Math.min(el.scrollHeight, MAX_H) + 'px'
   }
+
+  // Resetta l'altezza a 1 riga quando il testo viene svuotato
+  useEffect(() => {
+    if (!input && inputRef.current) {
+      inputRef.current.style.height = SINGLE_ROW_H + 'px'
+    }
+  }, [input])
 
   const handleInputChange = (e) => {
     setInput(e.target.value)
@@ -359,7 +365,7 @@ export default function ChatScreen({ onBack }) {
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="Scrivi un messaggio… (Ctrl+Invio per inviare)"
-          rows={4}
+          rows={1}
           disabled={loading}
         />
 
