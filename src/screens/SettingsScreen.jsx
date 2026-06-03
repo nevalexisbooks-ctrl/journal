@@ -18,18 +18,42 @@ import styles from './SettingsScreen.module.css'
 
 export default function SettingsScreen({ onBack }) {
 
-  // ── Chi sono (localStorage) ───────────────────────────────────────────────
-  const [userProfile,      setUserProfile]      = useState(() => localStorage.getItem('user_profile') ?? '')
+  // ── Chi sono (Firestore settings/profilo) ────────────────────────────────
+  const [userProfile,      setUserProfile]      = useState('')
   const [profileSaved,     setProfileSaved]     = useState(false)
   const profileTimerRef  = useRef(null)
+  const profileReadyRef  = useRef(false)
 
-  // Auto-save profilo 800ms dopo l'ultima modifica
+  // Carica profilo da Firestore (con fallback a localStorage per migrazione)
   useEffect(() => {
+    async function loadProfilo() {
+      try {
+        const snap = await getDoc(doc(db, 'settings', 'profilo'))
+        if (snap.exists()) {
+          setUserProfile(snap.data().testo ?? '')
+        } else {
+          // Migrazione da localStorage
+          setUserProfile(localStorage.getItem('user_profile') ?? '')
+        }
+      } catch (err) {
+        setUserProfile(localStorage.getItem('user_profile') ?? '')
+      } finally {
+        setTimeout(() => { profileReadyRef.current = true }, 50)
+      }
+    }
+    loadProfilo()
+  }, [])
+
+  // Auto-save profilo su Firestore 800ms dopo l'ultima modifica
+  useEffect(() => {
+    if (!profileReadyRef.current) return
     clearTimeout(profileTimerRef.current)
-    profileTimerRef.current = setTimeout(() => {
-      localStorage.setItem('user_profile', userProfile)
-      setProfileSaved(true)
-      setTimeout(() => setProfileSaved(false), 1500)
+    profileTimerRef.current = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, 'settings', 'profilo'), { testo: userProfile }, { merge: true })
+        setProfileSaved(true)
+        setTimeout(() => setProfileSaved(false), 1500)
+      } catch (err) { console.error('Errore salvataggio profilo:', err) }
     }, 800)
     return () => clearTimeout(profileTimerRef.current)
   }, [userProfile])
@@ -202,6 +226,18 @@ export default function SettingsScreen({ onBack }) {
   }
 
   const forceReload = () => window.location.reload(true)
+
+  const resetChat = async () => {
+    const ok = window.confirm('Sei sicura di voler cancellare tutta la cronologia della chat?')
+    if (!ok) return
+    try {
+      await setDoc(doc(db, 'chat', 'storia'), { messages: [], updatedAt: Date.now() })
+      alert('✓ Chat resettata con successo.')
+    } catch (err) {
+      console.error('Errore reset chat:', err)
+      alert('Errore durante il reset: ' + err.message)
+    }
+  }
 
   // ════════════════════════════════════════════════════════════════
   //  RENDER
@@ -401,6 +437,13 @@ export default function SettingsScreen({ onBack }) {
 
             <button className={styles.btnMaint} onClick={forceReload}>
               🔄 Forza Aggiornamento
+            </button>
+
+            <button
+              className={`${styles.btnMaint} ${styles.btnDanger}`}
+              onClick={resetChat}
+            >
+              💬 Reset Chat Assistente
             </button>
           </div>
         </section>

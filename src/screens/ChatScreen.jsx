@@ -3,12 +3,12 @@
 //   - Ultimi 4 giorni da giorni/{YYYY-MM-DD}
 //   - Goals e note settimanali da settimane/{YYYY-WNN}  (NON il menù)
 //   - settings/ciclo per fase mestruale corrente
-//   - Profilo utente da localStorage 'user_profile'
+//   - Profilo utente da Firestore settings/profilo
 //   - System prompt da localStorage 'ai_system_prompt'
-// La cronologia è persistente: salvata in localStorage 'chat_history'.
+// Cronologia chat salvata su Firestore collection 'chat' doc 'storia'.
 // La chiamata API passa per la Firebase Function claudeProxy (nessun CORS).
 import React, { useState, useEffect, useRef } from 'react'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
   toDateKey, toWeekKey, getMonday, getWeekDays, calcDayScore, calcCyclePhase,
@@ -24,6 +24,40 @@ const DEFAULT_SYSTEM =
   'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
   'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto. ' +
   'Rispondi sempre in italiano.'
+
+const WELCOME_MSG = 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
+
+// ════════════════════════════════════════════════════════════════
+//  PERSISTENZA FIRESTORE
+// ════════════════════════════════════════════════════════════════
+
+async function loadHistoryFromFirestore() {
+  try {
+    const snap = await getDoc(doc(db, 'chat', 'storia'))
+    if (snap.exists()) {
+      const msgs = snap.data().messages ?? []
+      if (msgs.length > 0) return msgs
+    }
+  } catch (err) {
+    console.warn('Errore caricamento chat:', err)
+  }
+  return [{ role: 'assistant', content: WELCOME_MSG }]
+}
+
+async function saveHistoryToFirestore(messages) {
+  try {
+    await setDoc(doc(db, 'chat', 'storia'), {
+      messages: messages.map(m => ({
+        role:      m.role,
+        content:   m.content,
+        timestamp: m.timestamp ?? Date.now(),
+      })),
+      updatedAt: Date.now(),
+    })
+  } catch (err) {
+    console.warn('Errore salvataggio chat:', err)
+  }
+}
 
 // ════════════════════════════════════════════════════════════════
 //  RACCOLTA CONTESTO DA FIRESTORE + localStorage
@@ -47,17 +81,20 @@ async function buildSystemPrompt() {
   const dayKeys = last4.map(d => toDateKey(d))
   const weekKey = toWeekKey(today)
 
-  const [daySnaps, weekSnap, cicloSnap] = await Promise.all([
+  const [daySnaps, weekSnap, cicloSnap, profiloSnap] = await Promise.all([
     Promise.all(dayKeys.map(k => getDoc(doc(db, 'giorni', k)))),
     getDoc(doc(db, 'settimane', weekKey)),
     getDoc(doc(db, 'settings', 'ciclo')),
+    getDoc(doc(db, 'settings', 'profilo')),
   ])
 
   // ── System prompt da localStorage ────────────────────────────
   const basePrompt = localStorage.getItem('ai_system_prompt')?.trim() || DEFAULT_SYSTEM
 
-  // ── Data + profilo utente ─────────────────────────────────────
-  const userProfile = localStorage.getItem('user_profile')?.trim() ?? ''
+  // ── Profilo utente da Firestore ───────────────────────────────
+  const userProfile = profiloSnap.exists()
+    ? (profiloSnap.data().testo?.trim() ?? '')
+    : (localStorage.getItem('user_profile')?.trim() ?? '')
   const profileSection = userProfile ? `\n\n=== Chi sono ===\n${userProfile}\n` : ''
 
   // ── Ciclo mestruale ───────────────────────────────────────────
@@ -115,7 +152,6 @@ async function buildSystemPrompt() {
       const um = d.umore ?? {}
       if (um.voto) ctx += `  Umore: ${um.voto}/10\n`
 
-      // Task con testo completo e stato
       const todos = d.todos ?? []
       if (todos.length > 0) {
         ctx += `  Task:\n`
@@ -148,12 +184,13 @@ async function buildSystemPrompt() {
 //  CHIAMATA AL PROXY FIREBASE
 // ════════════════════════════════════════════════════════════════
 
-async function callProxy(messages, systemPrompt) {
+async function callProxy(messages, systemPrompt, signal) {
   console.log('[ChatScreen] Chiamata a claudeProxy →', PROXY_URL)
   console.log('[ChatScreen] Messaggi inviati:', messages.length, '| Modello:', CLAUDE_MODEL)
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    signal,
     body: JSON.stringify({
       model:      CLAUDE_MODEL,
       max_tokens: 1024,
@@ -176,62 +213,73 @@ async function callProxy(messages, systemPrompt) {
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
-const CHAT_STORAGE_KEY = 'chat_history'
-const WELCOME_MSG = 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
-
-function loadHistory() {
-  try {
-    const saved = localStorage.getItem(CHAT_STORAGE_KEY)
-    if (saved) return JSON.parse(saved)
-  } catch {}
-  return [{ role: 'assistant', content: WELCOME_MSG }]
-}
-
 export default function ChatScreen({ onBack }) {
-  const [messages, setMessages] = useState(loadHistory)
-  const [input,   setInput]   = useState('')
-  const [loading, setLoading] = useState(false)
+  const [messages, setMessages] = useState([{ role: 'assistant', content: WELCOME_MSG }])
+  const [input,    setInput]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
 
-  const bottomRef = useRef(null)
-  const inputRef  = useRef(null)
+  const bottomRef    = useRef(null)
+  const inputRef     = useRef(null)
+  const abortRef     = useRef(null)   // AbortController corrente
 
-  // Persiste la cronologia ad ogni aggiornamento
+  // Carica cronologia da Firestore al mount
   useEffect(() => {
-    try {
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
-    } catch {}
-  }, [messages])
+    loadHistoryFromFirestore().then(msgs => {
+      setMessages(msgs)
+      setHistoryLoaded(true)
+    })
+  }, [])
+
+  // Salva su Firestore ad ogni aggiornamento (dopo il caricamento iniziale)
+  useEffect(() => {
+    if (!historyLoaded) return
+    saveHistoryToFirestore(messages)
+  }, [messages, historyLoaded])
 
   // Scroll automatico all'ultimo messaggio
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // ── Stop risposta ────────────────────────────────────────────
+  const stop = () => {
+    if (abortRef.current) abortRef.current.abort()
+  }
+
   // ── Invio messaggio ─────────────────────────────────────────
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
 
-    const userMsg = { role: 'user', content: text }
+    const userMsg = { role: 'user', content: text, timestamp: Date.now() }
     setMessages(prev => [...prev, userMsg])
     setInput('')
     setLoading(true)
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
-      // History per l'API: solo messaggi user/assistant (escludi il primo benvenuto)
       const apiHistory = [
         ...messages.filter((_, i) => i > 0),
         userMsg,
       ]
       const systemPrompt = await buildSystemPrompt()
-      const reply = await callProxy(apiHistory, systemPrompt)
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+      const reply = await callProxy(apiHistory, systemPrompt, controller.signal)
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }])
     } catch (err) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `Si è verificato un errore: ${err.message}`,
-      }])
+      if (err.name === 'AbortError') {
+        // Fetch annullata — non aggiungere messaggio di errore
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Si è verificato un errore: ${err.message}`,
+          timestamp: Date.now(),
+        }])
+      }
     } finally {
+      abortRef.current = null
       setLoading(false)
       inputRef.current?.focus()
     }
@@ -251,7 +299,7 @@ export default function ChatScreen({ onBack }) {
   return (
     <div className={styles.screen}>
 
-      {/* ══ HEADER ══════════════════════════════════════════════ */}
+      {/* ══ HEADER fisso ════════════════════════════════════════ */}
       <header className={styles.header}>
         <button className={styles.backBtn} onClick={onBack} aria-label="Torna">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -273,7 +321,6 @@ export default function ChatScreen({ onBack }) {
           </div>
         ))}
 
-        {/* Indicatore "sta scrivendo…" */}
         {loading && (
           <div className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.bubbleTyping}`}>
             <span className={styles.dot} />
@@ -297,18 +344,29 @@ export default function ChatScreen({ onBack }) {
           rows={1}
           disabled={loading}
         />
-        <button
-          className={styles.sendBtn}
-          onClick={send}
-          disabled={loading || !input.trim()}
-          aria-label="Invia"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
+
+        {loading ? (
+          /* Pulsante Stop */
+          <button className={styles.stopBtn} onClick={stop} aria-label="Interrompi">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="#fff">
+              <rect x="2" y="2" width="10" height="10" rx="2" />
+            </svg>
+          </button>
+        ) : (
+          /* Pulsante Invia */
+          <button
+            className={styles.sendBtn}
+            onClick={send}
+            disabled={!input.trim()}
+            aria-label="Invia"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        )}
       </div>
 
     </div>

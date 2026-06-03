@@ -504,50 +504,49 @@ export default function DetailScreen({ onBack, initialDate }) {
               {
                 field: 'passi', unit: '', step: '100', placeholder: '0', label: 'Passi',
                 icon: (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M8 3.5 C7 2 5 2 4.5 3.5 L3 9 C2.5 11 4 12 5.5 12 L7 12 L8 17 C8.3 18.5 9.5 19 10.5 18.5 C11.5 18 11.5 16.5 11 15 L9.5 10 L11 9.5 C12.5 9 13 7.5 12.5 6 L11 3.5 C10.5 2 9 2 8 3.5 Z" />
-                    <path d="M15 8.5 C14 7 12.5 7.5 12.5 9 L13 13 L16 13.5 L17 18 C17.3 19.5 18.5 20 19.5 19.5 C20.5 19 20.5 17.5 20 16 L18.5 11 L19.5 9.5 C20.5 8 19.5 6.5 18 6.5 C16.5 6.5 15.5 7.5 15 8.5 Z" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round">
+                    <line x1="3" y1="6"  x2="15" y2="6"  />
+                    <line x1="3" y1="10" x2="12" y2="10" />
+                    <line x1="3" y1="14" x2="9"  y2="14" />
                   </svg>
                 ),
               },
               {
                 field: 'acqua', unit: 'litri', step: '0.1', placeholder: '0.0', label: 'Acqua',
                 icon: (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2 C12 2 5 10 5 15 a7 7 0 0 0 14 0 C19 10 12 2 12 2 Z" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="12" r="4" />
+                    <polygon points="9,4 7,8 11,8" />
                   </svg>
                 ),
               },
               {
                 field: 'social', unit: 'min', step: '1', placeholder: '0', label: 'Social media',
                 icon: (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="7" y="2" width="10" height="20" rx="2" />
-                    <line x1="10" y1="18" x2="14" y2="18" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="12" height="12" rx="2" />
+                    <line x1="6" y1="9" x2="12" y2="9" />
                   </svg>
                 ),
               },
               {
                 field: 'cyclette', unit: 'min', step: '5', placeholder: '0', label: 'Cyclette',
                 icon: (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="5.5" cy="17" r="3.5" />
-                    <circle cx="18.5" cy="17" r="3.5" />
-                    <path d="M9 17 L12 8 L15 11 L18.5 17" />
-                    <path d="M12 8 L15 8" />
-                    <circle cx="12" cy="5.5" r="1.5" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round">
+                    <circle cx="4" cy="13" r="3" />
+                    <circle cx="14" cy="13" r="3" />
+                    <line x1="4" y1="13" x2="14" y2="13" />
                   </svg>
                 ),
               },
               {
                 field: 'yoga', unit: 'min', step: '5', placeholder: '0', label: 'Yoga',
                 icon: (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="4" r="1.5" />
-                    <path d="M12 6 L12 13" />
-                    <path d="M7 10 L12 12 L17 10" />
-                    <path d="M9 13 L7 19" />
-                    <path d="M15 13 L17 19" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round">
+                    <circle cx="9" cy="4" r="1.5" />
+                    <line x1="9" y1="5.5" x2="9" y2="12" />
+                    <line x1="9" y1="9" x2="5" y2="13" />
+                    <line x1="9" y1="9" x2="13" y2="13" />
                   </svg>
                 ),
               },
@@ -575,10 +574,10 @@ export default function DetailScreen({ onBack, initialDate }) {
             <div className={styles.challengeRow}>
               <label className={styles.challengeLabel}>
                 <span className={styles.challengeIcon}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 3 C7 3 5 5 5 7 C5 9 6 10 7 11 L17 11 C18 10 19 9 19 7 C19 5 17 3 15 3 C13.5 3 13 4 12 4 C11 4 10.5 3 9 3 Z" />
-                    <path d="M7 11 L6 20 C6 20.5 6.5 21 7 21 L17 21 C17.5 21 18 20.5 18 20 L17 11" />
-                    <line x1="12" y1="11" x2="12" y2="21" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A9E85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="12" height="12" rx="2" />
+                    <line x1="6" y1="6" x2="12" y2="12" />
+                    <line x1="12" y1="6" x2="6" y2="12" />
                   </svg>
                 </span>
                 Zero zuccheri
@@ -586,13 +585,13 @@ export default function DetailScreen({ onBack, initialDate }) {
               <div className={styles.toggleGroup}>
                 <button
                   type="button"
-                  className={`${styles.toggleBtn} ${challenge.zeroZuccheri === true ? styles.toggleBtnOn : ''}`}
+                  className={`${styles.toggleBtn} ${challenge.zeroZuccheri === true ? styles.toggleBtnOn : styles.toggleBtnNeutral}`}
                   onClick={() => !future && setChallenge(p => ({ ...p, zeroZuccheri: true }))}
                   disabled={future}
                 >Sì</button>
                 <button
                   type="button"
-                  className={`${styles.toggleBtn} ${challenge.zeroZuccheri === false ? styles.toggleBtnOff : ''}`}
+                  className={`${styles.toggleBtn} ${challenge.zeroZuccheri === false ? styles.toggleBtnOff : styles.toggleBtnNeutral}`}
                   onClick={() => !future && setChallenge(p => ({ ...p, zeroZuccheri: false }))}
                   disabled={future}
                 >No</button>
