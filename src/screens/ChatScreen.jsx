@@ -16,7 +16,7 @@ import styles from './ChatScreen.module.css'
 
 // ── Endpoint Firebase Function proxy ──────────────────────────────────────────
 const PROXY_URL = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
-const CLAUDE_MODEL = 'claude-opus-4-6'
+const CLAUDE_MODEL = 'claude-sonnet-4-5'
 
 // ── System prompt di default ───────────────────────────────────────────────────
 const DEFAULT_SYSTEM =
@@ -122,6 +122,8 @@ async function buildSystemPrompt() {
 // ════════════════════════════════════════════════════════════════
 
 async function callProxy(messages, systemPrompt) {
+  console.log('[ChatScreen] Chiamata a claudeProxy →', PROXY_URL)
+  console.log('[ChatScreen] Messaggi inviati:', messages.length, '| Modello:', CLAUDE_MODEL)
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

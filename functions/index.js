@@ -12,6 +12,7 @@ exports.claudeProxy = functions.https.onRequest(async (req, res) => {
   try {
     const configDoc = await admin.firestore().collection("settings").doc("serverConfig").get();
     const apiKey = configDoc.data()?.anthropicKey;
+    console.log("API key trovata:", apiKey ? "sì, lunghezza " + apiKey.length : "NO - undefined");
     if (!apiKey) { res.status(500).json({ error: "API key non configurata" }); return; }
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
