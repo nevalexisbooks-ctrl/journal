@@ -48,6 +48,35 @@ export default function Header({ onSettingsClick }) {
       </button>
 
       <p className={styles.greeting}>Buongiorno</p>
+
+      {/* Ramoscello decorativo scandinavo */}
+      <svg
+        width="120" height="24" viewBox="0 0 120 24"
+        fill="none" stroke="#ffffff" strokeWidth="1.2"
+        strokeLinecap="round" strokeLinejoin="round"
+        aria-hidden="true"
+        className={styles.branch}
+      >
+        {/* Stelo centrale */}
+        <line x1="10" y1="12" x2="110" y2="12" />
+
+        {/* Foglie lato sinistro — crescono verso il centro */}
+        <ellipse cx="28" cy="7"  rx="6" ry="3" transform="rotate(-35 28 7)"  />
+        <ellipse cx="44" cy="5"  rx="6" ry="3" transform="rotate(-20 44 5)"  />
+        <ellipse cx="28" cy="17" rx="6" ry="3" transform="rotate(35 28 17)"  />
+        <ellipse cx="44" cy="19" rx="6" ry="3" transform="rotate(20 44 19)"  />
+
+        {/* Foglia centrale piccola */}
+        <ellipse cx="60" cy="5"  rx="5" ry="2.5" transform="rotate(-10 60 5)"  />
+        <ellipse cx="60" cy="19" rx="5" ry="2.5" transform="rotate(10 60 19)"  />
+
+        {/* Foglie lato destro — simmetriche */}
+        <ellipse cx="76" cy="5"  rx="6" ry="3" transform="rotate(20 76 5)"   />
+        <ellipse cx="92" cy="7"  rx="6" ry="3" transform="rotate(35 92 7)"   />
+        <ellipse cx="76" cy="19" rx="6" ry="3" transform="rotate(-20 76 19)" />
+        <ellipse cx="92" cy="17" rx="6" ry="3" transform="rotate(-35 92 17)" />
+      </svg>
+
       <p className={styles.date}>{dataOggi || 'caricamento…'}</p>
     </header>
   )

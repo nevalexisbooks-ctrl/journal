@@ -32,7 +32,14 @@
   font-weight: 700;
   color: #fff;
   line-height: 1.1;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+/* Ramoscello decorativo */
+.branch {
+  display: block;
+  margin: 0 auto 6px;
+  opacity: 0.75;
 }
 
 /* Data corrente */
