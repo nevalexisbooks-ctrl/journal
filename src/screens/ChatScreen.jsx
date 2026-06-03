@@ -214,10 +214,11 @@ async function callProxy(messages, systemPrompt, signal) {
 // ════════════════════════════════════════════════════════════════
 
 export default function ChatScreen({ onBack }) {
-  const [messages, setMessages] = useState([{ role: 'assistant', content: WELCOME_MSG }])
-  const [input,    setInput]    = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [messages,       setMessages]       = useState([{ role: 'assistant', content: WELCOME_MSG }])
+  const [input,          setInput]          = useState('')
+  const [loading,        setLoading]        = useState(false)
+  const [historyLoaded,  setHistoryLoaded]  = useState(false)
+  const [keyboardOffset, setKeyboardOffset] = useState(0)
 
   const bottomRef    = useRef(null)
   const inputRef     = useRef(null)
@@ -241,6 +242,23 @@ export default function ChatScreen({ onBack }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Rilevamento tastiera virtuale mobile via visualViewport
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.visualViewport) {
+        const bottomOffset =
+          window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
+        setKeyboardOffset(bottomOffset > 0 ? bottomOffset : 0)
+      }
+    }
+    window.visualViewport?.addEventListener('resize', handleResize)
+    window.visualViewport?.addEventListener('scroll', handleResize)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize)
+      window.visualViewport?.removeEventListener('scroll', handleResize)
+    }
+  }, [])
 
   // ── Stop risposta ────────────────────────────────────────────
   const stop = () => {
@@ -335,7 +353,10 @@ export default function ChatScreen({ onBack }) {
       </header>
 
       {/* ══ MESSAGGI ════════════════════════════════════════════ */}
-      <div className={styles.messages}>
+      <div
+        className={styles.messages}
+        style={{ paddingBottom: `${160 + keyboardOffset}px` }}
+      >
         {messages.map((m, i) => (
           <div
             key={i}
@@ -357,7 +378,10 @@ export default function ChatScreen({ onBack }) {
       </div>
 
       {/* ══ INPUT BAR ═══════════════════════════════════════════ */}
-      <div className={styles.inputBar}>
+      <div
+        className={styles.inputBar}
+        style={{ bottom: `${keyboardOffset}px` }}
+      >
         <textarea
           ref={inputRef}
           className={styles.inputField}
