@@ -1,7 +1,7 @@
 {
   "name": "journal",
   "private": true,
-  "version": "2026.6.3-13.7",
+  "version": "2026.6.3-13.17",
   "type": "module",
   "scripts": {
     "dev": "vite",

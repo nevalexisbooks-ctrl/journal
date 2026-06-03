@@ -40,7 +40,7 @@
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 18px 14px 8px;
+  padding: 18px 14px 160px; /* spazio per l'input bar fisso in fondo */
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -98,13 +98,17 @@
 
 /* ── INPUT BAR ───────────────────────────────────────────────── */
 .inputBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
-  align-items: flex-end;   /* pulsante ancorato in basso */
+  align-items: flex-end;
   gap: 10px;
-  padding: 10px 14px 20px;
+  padding: 10px 14px 24px;
   background: var(--bg);
   border-top: 1px solid rgba(0,0,0,0.07);
-  flex-shrink: 0;
+  z-index: 20;
 }
 
 .inputField {
