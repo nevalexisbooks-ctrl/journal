@@ -13,7 +13,7 @@
   },
   "main": "index.js",
   "dependencies": {
-    "firebase-admin": "^11.8.0",
+    "firebase-admin": "^11.11.1",
     "firebase-functions": "^7.2.5",
     "node-fetch": "^2.7.0"
   },
