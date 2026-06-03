@@ -205,12 +205,11 @@
 }
 .goalInput:focus { border-color: var(--header); }
 
-/* ── QUADRANTI 2×2 ───────────────────────────────────────────── */
-.twoByTwo {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* ── COLONNA MENU + NOTE ─────────────────────────────────────── */
+.menuNoteCol {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: start;
 }
 
 .quadSage {
@@ -218,12 +217,8 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: 14px 12px;
-  /* Menu è lungo: scrollabile */
-  max-height: 420px;
-  overflow-y: auto;
+  /* Nessuno scroll — tutto visibile */
 }
-.quadSage::-webkit-scrollbar { width: 3px; }
-.quadSage::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
 
 .quadWhite {
   background: var(--white);

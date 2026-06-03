@@ -23,6 +23,22 @@ const DEFAULT_AI_PROMPT =
 
 export default function SettingsScreen({ onBack }) {
 
+  // ── Chi sono (localStorage) ───────────────────────────────────────────────
+  const [userProfile,      setUserProfile]      = useState(() => localStorage.getItem('user_profile') ?? '')
+  const [profileSaved,     setProfileSaved]     = useState(false)
+  const profileTimerRef  = useRef(null)
+
+  // Auto-save profilo 800ms dopo l'ultima modifica
+  useEffect(() => {
+    clearTimeout(profileTimerRef.current)
+    profileTimerRef.current = setTimeout(() => {
+      localStorage.setItem('user_profile', userProfile)
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 1500)
+    }, 800)
+    return () => clearTimeout(profileTimerRef.current)
+  }, [userProfile])
+
   // ── Ciclo ─────────────────────────────────────────────────────────────────
   const [ciclo,       setCiclo]       = useState({ dataInizio: '', durataCiclo: 28, durataflusso: 5 })
   const [cicloSaving, setCicloSaving] = useState(false)
@@ -246,6 +262,24 @@ export default function SettingsScreen({ onBack }) {
       </header>
 
       <main className={styles.main}>
+
+        {/* ── CHI SONO ────────────────────────────────────────── */}
+        <section className={styles.cardWhite}>
+          <h2 className={styles.blockTitle}>Chi sono</h2>
+          <p className={styles.blockSub}>
+            Queste informazioni vengono condivise con l'assistente AI per risponderti in modo più personalizzato.
+          </p>
+          <textarea
+            className={styles.promptArea}
+            value={userProfile}
+            onChange={e => setUserProfile(e.target.value)}
+            rows={5}
+            placeholder="Nome, età, stile di vita, obiettivi, preferenze…"
+          />
+          <p className={styles.autoSaveNote}>
+            {profileSaved ? '✓ Salvato' : 'Salvataggio automatico'}
+          </p>
+        </section>
 
         {/* ── CALENDARIO DEL CICLO ────────────────────────────── */}
         <section className={styles.cardWhite}>

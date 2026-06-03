@@ -59,7 +59,6 @@ export default function WeeklyRecapCard({ onClick }) {
       onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
     >
       <p className={styles.title}>Weekly recap</p>
-      <p className={styles.sub}>Weekly goal</p>
 
       {/* Goals settimanali (max 4 righe per lo spazio della card) */}
       <ul className={styles.taskList}>

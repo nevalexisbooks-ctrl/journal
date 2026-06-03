@@ -15,7 +15,7 @@ export default function JournalCard({ onClick }) {
       onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
     >
       <p className={styles.title}>Journal</p>
-      <p className={styles.sub}>Chat con Gemini</p>
+      <p className={styles.sub}>Il tuo Assistente</p>
     </section>
   )
 }

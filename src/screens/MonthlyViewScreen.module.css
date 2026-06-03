@@ -117,7 +117,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ── Recap (salvia) ── */
@@ -135,13 +135,16 @@
 }
 
 .recapList {
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: 0;
 }
 
 .recapRow {
   display: flex; justify-content: space-between;
   align-items: baseline; gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
+.recapRow:last-child { border-bottom: none; }
 
 .recapLabel {
   font-size: 0.65rem; font-weight: 600;

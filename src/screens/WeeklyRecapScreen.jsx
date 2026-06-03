@@ -227,7 +227,7 @@ export default function WeeklyRecapScreen({ onBack }) {
 
         {/* ── WEEKLY GOAL COMPLETED ───────────────────────────── */}
         <section className={styles.cardSand}>
-          <h2 className={styles.blockTitle}>Weekly goal completed</h2>
+          <h2 className={styles.blockTitle}>Weekly goal</h2>
 
           <ul className={styles.goalList}>
             {goals.map(g => (
@@ -304,8 +304,8 @@ export default function WeeklyRecapScreen({ onBack }) {
           </ul>
         </section>
 
-        {/* ── DUE QUADRANTI: MENU + NOTE ──────────────────────── */}
-        <div className={styles.twoByTwo}>
+        {/* ── MENU + NOTE in colonna ──────────────────────────── */}
+        <div className={styles.menuNoteCol}>
 
           {/* Menù — salvia chiaro */}
           <section className={styles.quadSage}>
@@ -341,7 +341,6 @@ export default function WeeklyRecapScreen({ onBack }) {
           </section>
 
           {/* Note — bianco (disponibili come contesto per chat AI) */}
-          {/* TODO: AI — passare il contenuto di `note` come contesto alla chat */}
           <section className={styles.quadWhite}>
             <h3 className={styles.quadTitle}>Note</h3>
             <textarea
@@ -349,7 +348,7 @@ export default function WeeklyRecapScreen({ onBack }) {
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="Scrivi qualcosa…"
-              rows={12}
+              rows={8}
             />
           </section>
 

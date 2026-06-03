@@ -4,7 +4,7 @@
 //   - Goals e note settimanali da settimane/{YYYY-WNN}  (NON il menù)
 //   - System prompt da settings/aiPrompt
 // La cronologia è in memoria React (non salvata su Firestore).
-// API: Google Gemini generateContent via fetch (browser-side, richiede VITE_GEMINI_API_KEY nel .env)
+// API: Anthropic Claude Messages via fetch (browser-side, chiave in localStorage 'gemini_api_key')
 import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
@@ -47,6 +47,9 @@ async function buildSystemPrompt() {
   const basePrompt = promptSnap.exists()
     ? (promptSnap.data().prompt ?? DEFAULT_SYSTEM)
     : DEFAULT_SYSTEM
+
+  // Profilo utente da localStorage (può essere vuoto)
+  const userProfile = localStorage.getItem('user_profile')?.trim() ?? ''
 
   // ── Formatta contesto giorni ──────────────────────────────────
   let ctx = '\n\n=== Dati degli ultimi 4 giorni ===\n'
@@ -115,37 +118,42 @@ async function buildSystemPrompt() {
     }
   }
 
-  return basePrompt + ctx
+  let profileSection = ''
+  if (userProfile) {
+    profileSection = `\n\n=== Chi sono ===\n${userProfile}\n`
+  }
+
+  return basePrompt + profileSection + ctx
 }
 
 // ════════════════════════════════════════════════════════════════
-//  CHIAMATA API GEMINI
+//  CHIAMATA API ANTHROPIC CLAUDE
 // ════════════════════════════════════════════════════════════════
 
-async function callGemini(messages, systemPrompt) {
+const CLAUDE_MODEL = 'claude-opus-4-6'
+
+async function callClaude(messages, systemPrompt) {
   const apiKey = localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY
 
   if (!apiKey) {
     throw new Error('NO_API_KEY')
   }
 
-  // Converti la history nel formato Gemini (role: user/model)
-  const contents = messages.map(m => ({
-    role:  m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }))
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
-      }),
-    }
-  )
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key':             apiKey,
+      'anthropic-version':     '2023-06-01',
+      'content-type':          'application/json',
+      'anthropic-dangerous-request-browser': 'true',
+    },
+    body: JSON.stringify({
+      model:      CLAUDE_MODEL,
+      max_tokens: 1024,
+      system:     systemPrompt,
+      messages:   messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -153,7 +161,7 @@ async function callGemini(messages, systemPrompt) {
   }
 
   const data = await res.json()
-  return data.candidates[0].content.parts[0].text
+  return data.content[0].text
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -163,7 +171,7 @@ async function callGemini(messages, systemPrompt) {
 const API_KEY_MISSING = !localStorage.getItem('gemini_api_key') && !import.meta.env.VITE_GEMINI_API_KEY
 
 const WELCOME_MSG = API_KEY_MISSING
-  ? 'Configura la tua API key Gemini nelle Impostazioni per usare l\'assistente.'
+  ? 'Configura la tua API key nelle Impostazioni per usare l\'assistente.'
   : 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
 
 export default function ChatScreen({ onBack }) {
@@ -197,7 +205,7 @@ export default function ChatScreen({ onBack }) {
       const apiHistory = [...messages.filter(m => !(m.role === 'assistant' && m === messages[0])), userMsg]
 
       const systemPrompt = await buildSystemPrompt()
-      const reply = await callGemini(
+      const reply = await callClaude(
         apiHistory.map(m => ({ role: m.role, content: m.content })),
         systemPrompt
       )
