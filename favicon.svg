@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Sfondo quadrato arrotondato verde salvia -->
+  <rect width="32" height="32" rx="7" fill="#8A9E85"/>
+  <!-- Foglia bianca stilizzata -->
+  <path d="M16 7 C16 7, 23 10, 23 18 C23 22, 19.5 25, 16 25 C16 25, 16 18, 11 14 C13 12, 16 7, 16 7 Z" fill="white" opacity="0.95"/>
+  <path d="M16 25 C16 25, 16 15, 16 7" stroke="white" stroke-width="1.2" stroke-linecap="round" opacity="0.5" fill="none"/>
+</svg>

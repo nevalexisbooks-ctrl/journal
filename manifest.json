@@ -1,0 +1,19 @@
+{
+  "name": "Journal",
+  "short_name": "Journal",
+  "description": "Il tuo Bullet Journal personale",
+  "start_url": "/journal/",
+  "scope": "/journal/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2EDE6",
+  "theme_color": "#8A9E85",
+  "icons": [
+    {
+      "src": "/journal/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
