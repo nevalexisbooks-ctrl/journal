@@ -4,6 +4,7 @@
 //   settings/ciclo   → { dataInizio, durataCiclo, durataflusso }
 //   settings/habits  → { habits: [{id, text, startDate, endDate}] }
 import React, { useState, useEffect, useRef } from 'react'
+import packageJson from '../../package.json'
 import {
   doc, getDoc, setDoc,
   collection, getDocs, writeBatch,
@@ -405,6 +406,8 @@ export default function SettingsScreen({ onBack }) {
         </section>
 
       </main>
+
+      <p className={styles.appVersion}>v{packageJson.version}</p>
     </div>
   )
 }
