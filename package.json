@@ -1,14 +1,13 @@
 {
   "name": "journal",
   "private": true,
-  "version": "0.1.0",
+  "version": "2026.6.3-10.23",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "node -e \"const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); const d=new Date(); p.version=d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()+'-'+d.getHours()+'.'+d.getMinutes(); fs.writeFileSync('package.json',JSON.stringify(p,null,2));\" && npm run build && gh-pages -d dist"
   },
   "dependencies": {
     "firebase": "^10.12.0",
