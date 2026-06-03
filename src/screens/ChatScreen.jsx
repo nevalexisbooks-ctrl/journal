@@ -2,15 +2,16 @@
 // Prima di ogni invio raccoglie da Firestore:
 //   - Ultimi 4 giorni da giorni/{YYYY-MM-DD}
 //   - Goals e note settimanali da settimane/{YYYY-WNN}  (NON il menù)
+//   - settings/ciclo per fase mestruale corrente
 //   - Profilo utente da localStorage 'user_profile'
 //   - System prompt da localStorage 'ai_system_prompt'
+// La cronologia è persistente: salvata in localStorage 'chat_history'.
 // La chiamata API passa per la Firebase Function claudeProxy (nessun CORS).
-// La cronologia messaggi è in memoria React (non salvata su Firestore).
 import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
-  toDateKey, toWeekKey, getMonday, getWeekDays, calcDayScore,
+  toDateKey, toWeekKey, getMonday, getWeekDays, calcDayScore, calcCyclePhase,
 } from '../utils/calcWidgets.js'
 import styles from './ChatScreen.module.css'
 
@@ -30,6 +31,12 @@ const DEFAULT_SYSTEM =
 
 async function buildSystemPrompt() {
   const today = new Date()
+  const todayKey = toDateKey(today)
+
+  // ── Data corrente in italiano ─────────────────────────────────
+  const dataOggi = today.toLocaleDateString('it-IT', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
 
   // Ultimi 4 giorni (incluso oggi)
   const last4 = Array.from({ length: 4 }, (_, i) => {
@@ -40,40 +47,61 @@ async function buildSystemPrompt() {
   const dayKeys = last4.map(d => toDateKey(d))
   const weekKey = toWeekKey(today)
 
-  const [daySnaps, weekSnap] = await Promise.all([
+  const [daySnaps, weekSnap, cicloSnap] = await Promise.all([
     Promise.all(dayKeys.map(k => getDoc(doc(db, 'giorni', k)))),
     getDoc(doc(db, 'settimane', weekKey)),
+    getDoc(doc(db, 'settings', 'ciclo')),
   ])
 
   // ── System prompt da localStorage ────────────────────────────
   const basePrompt = localStorage.getItem('ai_system_prompt')?.trim() || DEFAULT_SYSTEM
 
-  // ── Profilo utente da localStorage ───────────────────────────
+  // ── Data + profilo utente ─────────────────────────────────────
   const userProfile = localStorage.getItem('user_profile')?.trim() ?? ''
-  const profileSection = userProfile
-    ? `\n\n=== Chi sono ===\n${userProfile}\n`
-    : ''
+  const profileSection = userProfile ? `\n\n=== Chi sono ===\n${userProfile}\n` : ''
+
+  // ── Ciclo mestruale ───────────────────────────────────────────
+  let cicloSection = ''
+  if (cicloSnap.exists()) {
+    const c = cicloSnap.data()
+    if (c.dataInizio) {
+      const ph = calcCyclePhase(c.dataInizio, c.durataCiclo, c.durataflusso, today)
+      const PHASE_NAMES = ['Mestruale', 'Follicolare', 'Ovulatoria', 'Luteale']
+      cicloSection =
+        `\n\n=== Ciclo mestruale ===\n` +
+        `Fase: ${PHASE_NAMES[ph.phaseIdx]} — Giorno ${ph.dayInCycle} del ciclo\n` +
+        `Inizio ultimo ciclo: ${c.dataInizio}\n` +
+        `Durata media ciclo: ${c.durataCiclo ?? 28} giorni\n`
+    }
+  }
 
   // ── Formatta contesto giorni ──────────────────────────────────
   let ctx = '\n\n=== Dati degli ultimi 4 giorni ===\n'
 
   daySnaps.forEach((snap, i) => {
     const dateLabel = dayKeys[i]
+    const isToday   = dateLabel === todayKey
     const score     = snap.exists() ? calcDayScore(snap.data()) : null
-    ctx += `\n📅 ${dateLabel}${score !== null ? ` — Voto: ${score}/10` : ' — nessun dato'}\n`
+
+    let scoreLabel = ''
+    if (score !== null) {
+      scoreLabel = ` — Voto: ${score}/10`
+      if (isToday) scoreLabel += ' (provvisorio, cambierà con i dati della giornata)'
+    }
+    ctx += `\n📅 ${dateLabel}${score !== null ? scoreLabel : ' — nessun dato'}\n`
 
     if (snap.exists()) {
       const d  = snap.data()
       const ch = d.challenge ?? {}
 
       if (Number(ch.passi) || Number(ch.acqua) || Number(ch.social) ||
-          Number(ch.cyclette) || Number(ch.yoga) || ch.zeroZuccheri) {
+          Number(ch.cyclette) || Number(ch.yoga) || ch.zeroZuccheri != null) {
         ctx += `  Challenge: passi ${ch.passi || 0}`
         if (Number(ch.acqua))    ctx += `, acqua ${ch.acqua}L`
         if (Number(ch.social))   ctx += `, social ${ch.social}min`
         if (Number(ch.cyclette)) ctx += `, cyclette ${ch.cyclette}min`
         if (Number(ch.yoga))     ctx += `, yoga ${ch.yoga}min`
-        if (ch.zeroZuccheri)     ctx += `, zero zuccheri ✓`
+        ctx += `, zero zuccheri: ${ch.zeroZuccheri ? 'Sì' : 'No'}`
         ctx += '\n'
       }
 
@@ -87,13 +115,13 @@ async function buildSystemPrompt() {
       const um = d.umore ?? {}
       if (um.voto) ctx += `  Umore: ${um.voto}/10\n`
 
+      // Task con testo completo e stato
       const todos = d.todos ?? []
       if (todos.length > 0) {
-        const done = todos.filter(t => t.done).length
-        ctx += `  Task: ${done}/${todos.length} completate`
-        const incomp = todos.filter(t => !t.done).slice(0, 2).map(t => t.text)
-        if (incomp.length) ctx += ` (da fare: ${incomp.join(', ')})`
-        ctx += '\n'
+        ctx += `  Task:\n`
+        todos.forEach(t => {
+          ctx += `    - ${t.text} (${t.done ? 'completata' : 'non completata'})\n`
+        })
       }
 
       const habits = (d.habits ?? []).filter(h => h.done)
@@ -110,11 +138,10 @@ async function buildSystemPrompt() {
       ctx += '\n=== Obiettivi settimanali ===\n'
       goals.forEach(g => { ctx += `${g.done ? '[✓]' : '[ ]'} ${g.text}\n` })
     }
-    // NON includere il menù (privato)
     if (wData.note?.trim()) ctx += `\nNote settimana: "${wData.note.trim()}"\n`
   }
 
-  return basePrompt + profileSection + ctx
+  return `Oggi è ${dataOggi}.\n\n${basePrompt}${profileSection}${cicloSection}${ctx}`
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -149,17 +176,31 @@ async function callProxy(messages, systemPrompt) {
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
+const CHAT_STORAGE_KEY = 'chat_history'
 const WELCOME_MSG = 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
 
+function loadHistory() {
+  try {
+    const saved = localStorage.getItem(CHAT_STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch {}
+  return [{ role: 'assistant', content: WELCOME_MSG }]
+}
+
 export default function ChatScreen({ onBack }) {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: WELCOME_MSG }
-  ])
+  const [messages, setMessages] = useState(loadHistory)
   const [input,   setInput]   = useState('')
   const [loading, setLoading] = useState(false)
 
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
+
+  // Persiste la cronologia ad ogni aggiornamento
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
+    } catch {}
+  }, [messages])
 
   // Scroll automatico all'ultimo messaggio
   useEffect(() => {
@@ -177,7 +218,7 @@ export default function ChatScreen({ onBack }) {
     setLoading(true)
 
     try {
-      // History per l'API: escludi il messaggio di benvenuto iniziale
+      // History per l'API: solo messaggi user/assistant (escludi il primo benvenuto)
       const apiHistory = [
         ...messages.filter((_, i) => i > 0),
         userMsg,

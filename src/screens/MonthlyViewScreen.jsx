@@ -327,20 +327,20 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
               <dl className={styles.recapList}>
                 {[
                   { label: 'Passi tot',    val: fmt(recap.passiTot, 0) },
-                  { label: 'Passi medi',   val: fmt(recap.passiMedia, 0) },
+                  { label: 'Passi medi',   val: fmt(recap.passiMedia, 0),    groupEnd: true },
                   { label: 'Acqua tot',    val: `${fmt(recap.acquaTot)} L` },
-                  { label: 'Acqua media',  val: `${fmt(recap.acquaMedia)} L` },
+                  { label: 'Acqua media',  val: `${fmt(recap.acquaMedia)} L`,  groupEnd: true },
                   { label: 'Social tot',   val: `${fmt(recap.socialTot, 0)} min` },
-                  { label: 'Social med',   val: `${fmt(recap.socialMedia, 0)} min` },
+                  { label: 'Social med',   val: `${fmt(recap.socialMedia, 0)} min`, groupEnd: true },
                   { label: 'Cyclette tot', val: `${fmt(recap.cycletteTot, 0)} min` },
-                  { label: 'Cyclette med', val: `${fmt(recap.cycletteMedia, 0)} min` },
+                  { label: 'Cyclette med', val: `${fmt(recap.cycletteMedia, 0)} min`, groupEnd: true },
                   { label: 'Yoga tot',     val: `${fmt(recap.yogaTot, 0)} min` },
-                  { label: 'Yoga med',     val: `${fmt(recap.yogaMedia, 0)} min` },
-                  { label: 'Zero zucc',    val: `${recap.zeroZuccheri} gg` },
+                  { label: 'Yoga med',     val: `${fmt(recap.yogaMedia, 0)} min`, groupEnd: true },
+                  { label: 'Zero zucc',    val: `${recap.zeroZuccheri} gg`,  groupEnd: true },
                   { label: 'Sonno tot',    val: `${fmt(recap.sonnoTot)} h` },
                   { label: 'Sonno med',    val: `${fmt(recap.sonnoMedia)} h` },
-                ].map(({ label, val }) => (
-                  <div key={label} className={styles.recapRow}>
+                ].map(({ label, val, groupEnd }) => (
+                  <div key={label} className={`${styles.recapRow} ${groupEnd ? styles.recapGroupEnd : ''}`}>
                     <dt className={styles.recapLabel}>{label}</dt>
                     <dd className={styles.recapVal}>{val}</dd>
                   </div>
