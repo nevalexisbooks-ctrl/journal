@@ -105,6 +105,14 @@ export function toDateKey(date) {
   return `${y}-${m}-${d}`
 }
 
+/**
+ * Restituisce true se la chiave YYYY-MM-DD è strettamente futura rispetto a oggi.
+ * Il confronto lessicografico su YYYY-MM-DD è corretto e DST-safe.
+ */
+export function isFutureKey(key) {
+  return key > toDateKey(new Date())
+}
+
 /** Restituisce il Lunedì della settimana contenente `date` */
 export function getMonday(date) {
   const d   = new Date(date)

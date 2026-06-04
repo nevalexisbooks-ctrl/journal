@@ -326,12 +326,19 @@ export default function ChatScreen({ onBack }) {
     autoResize(e.target)
   }
 
-  // Ctrl+Enter invia; Enter normale va a capo (mobile: solo pulsante)
+  // Desktop (hover: hover): Enter invia, Ctrl+Enter va a capo
+  // Mobile: Enter va a capo, invio solo con pulsante ➤
+  const isDesktop = window.matchMedia('(hover: hover)').matches
+
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && e.ctrlKey) {
+    if (e.key !== 'Enter') return
+    if (isDesktop && !e.ctrlKey) {
       e.preventDefault()
       send()
+    } else if (isDesktop && e.ctrlKey) {
+      // lascia andare a capo — comportamento nativo
     }
+    // su mobile non intercettiamo nulla: Enter va a capo normalmente
   }
 
   // ════════════════════════════════════════════════════════════

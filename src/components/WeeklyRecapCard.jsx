@@ -9,7 +9,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
   toDateKey, toWeekKey, getMonday, getWeekDays,
-  todayWeekIndex, calcDayScore,
+  todayWeekIndex, calcDayScore, isFutureKey,
 } from '../utils/calcWidgets.js'
 import styles from './WeeklyRecapCard.module.css'
 
@@ -27,10 +27,10 @@ export default function WeeklyRecapCard({ onClick }) {
 
     // ── Carica voti giornalieri ───────────────────────────────────────
     async function loadScores() {
-      const promises = weekDays.map(d => getDoc(doc(db, 'giorni', toDateKey(d))))
-      const snaps    = await Promise.all(promises)
-      const calcolati = snaps.map(snap =>
-        snap.exists() ? calcDayScore(snap.data()) : null
+      const keys  = weekDays.map(d => toDateKey(d))
+      const snaps = await Promise.all(keys.map(k => getDoc(doc(db, 'giorni', k))))
+      const calcolati = snaps.map((snap, i) =>
+        isFutureKey(keys[i]) ? null : (snap.exists() ? calcDayScore(snap.data()) : null)
       )
       setScores(calcolati)
     }

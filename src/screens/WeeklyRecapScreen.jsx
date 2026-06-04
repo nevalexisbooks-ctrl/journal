@@ -9,7 +9,7 @@ import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
   toDateKey, toWeekKey, getMonday, getWeekDays,
-  formatWeekRange, todayWeekIndex, calcDayScore,
+  formatWeekRange, todayWeekIndex, calcDayScore, isFutureKey,
 } from '../utils/calcWidgets.js'
 import styles from './WeeklyRecapScreen.module.css'
 
@@ -71,11 +71,14 @@ export default function WeeklyRecapScreen({ onBack }) {
     async function loadAll() {
       try {
         // Voti giornalieri: 7 getDoc paralleli
+        const dayKeys  = days.map(d => toDateKey(d))
         const daySnaps = await Promise.all(
-          days.map(d => getDoc(doc(db, 'giorni', toDateKey(d))))
+          dayKeys.map(k => getDoc(doc(db, 'giorni', k)))
         )
         if (cancelled) return
-        setScores(daySnaps.map(s => s.exists() ? calcDayScore(s.data()) : null))
+        setScores(daySnaps.map((s, i) =>
+          isFutureKey(dayKeys[i]) ? null : (s.exists() ? calcDayScore(s.data()) : null)
+        ))
 
         // Dati settimanali
         const weekSnap = await getDoc(doc(db, 'settimane', wKey))

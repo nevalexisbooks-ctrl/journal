@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
-  toDateKey, calcCyclePhase, calcDayScore,
+  toDateKey, calcCyclePhase, calcDayScore, isFutureKey,
 } from '../utils/calcWidgets.js'
 import styles from './MonthlyViewScreen.module.css'
 
@@ -153,7 +153,8 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
     let daysWithData = 0
     const scores = []
 
-    Object.values(docsMap).forEach(d => {
+    Object.entries(docsMap).forEach(([key, d]) => {
+      if (isFutureKey(key)) return   // ignora giorni futuri
       if (!d) return
       const ch = d.challenge ?? {}
       const hasAny = (
