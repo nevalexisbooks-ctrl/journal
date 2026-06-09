@@ -64,16 +64,11 @@ async function saveHistoryToFirestore(messages) {
 // ════════════════════════════════════════════════════════════════
 
 async function buildSystemPrompt() {
-  const today = new Date()
+  const today    = new Date()
   const todayKey = toDateKey(today)
 
-  // ── Data corrente in italiano ─────────────────────────────────
-  const dataOggi = today.toLocaleDateString('it-IT', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  })
-
-  // Ultimi 4 giorni (incluso oggi)
-  const last4 = Array.from({ length: 4 }, (_, i) => {
+  // Ultimi 4 giorni (oggi = indice 0, ieri = indice 1, …)
+  const last4   = Array.from({ length: 4 }, (_, i) => {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
     return d
@@ -81,103 +76,185 @@ async function buildSystemPrompt() {
   const dayKeys = last4.map(d => toDateKey(d))
   const weekKey = toWeekKey(today)
 
-  const [daySnaps, weekSnap, cicloSnap, profiloSnap] = await Promise.all([
+  // Carica tutto in parallelo da Firestore
+  const [daySnaps, weekSnap, cicloSnap, profiloSnap, aiPromptSnap] = await Promise.all([
     Promise.all(dayKeys.map(k => getDoc(doc(db, 'giorni', k)))),
     getDoc(doc(db, 'settimane', weekKey)),
     getDoc(doc(db, 'settings', 'ciclo')),
     getDoc(doc(db, 'settings', 'profilo')),
+    getDoc(doc(db, 'settings', 'aiPrompt')),
   ])
 
-  // ── System prompt da localStorage ────────────────────────────
-  const basePrompt = localStorage.getItem('ai_system_prompt')?.trim() || DEFAULT_SYSTEM
+  // ── Helpers ───────────────────────────────────────────────────
+  const ni = 'non inserito'
+  const v  = (val) => (val != null && val !== '' ? String(val) : ni)
+  const vNum = (val, unit = '') =>
+    (val != null && val !== '' && Number(val) !== 0)
+      ? `${val}${unit}`
+      : ni
+  const vBool = (val) => (val == null ? ni : val ? 'Sì' : 'No')
 
-  // ── Profilo utente da Firestore ───────────────────────────────
-  const userProfile = profiloSnap.exists()
-    ? (profiloSnap.data().testo?.trim() ?? '')
-    : (localStorage.getItem('user_profile')?.trim() ?? '')
-  const profileSection = userProfile ? `\n\n=== Chi sono ===\n${userProfile}\n` : ''
-
-  // ── Ciclo mestruale ───────────────────────────────────────────
-  let cicloSection = ''
-  if (cicloSnap.exists()) {
-    const c = cicloSnap.data()
-    if (c.dataInizio) {
-      const ph = calcCyclePhase(c.dataInizio, c.durataCiclo, c.durataflusso, today)
-      const PHASE_NAMES = ['Mestruale', 'Follicolare', 'Ovulatoria', 'Luteale']
-      cicloSection =
-        `\n\n=== Ciclo mestruale ===\n` +
-        `Fase: ${PHASE_NAMES[ph.phaseIdx]} — Giorno ${ph.dayInCycle} del ciclo\n` +
-        `Inizio ultimo ciclo: ${c.dataInizio}\n` +
-        `Durata media ciclo: ${c.durataCiclo ?? 28} giorni\n`
-    }
+  // ── Calcola ore di sonno da "HH:MM"–"HH:MM" ──────────────────
+  const calcOre = (dalle, alle) => {
+    if (!dalle || !alle) return ni
+    const [dh, dm] = dalle.split(':').map(Number)
+    const [ah, am] = alle.split(':').map(Number)
+    let mins = (ah * 60 + am) - (dh * 60 + dm)
+    if (mins < 0) mins += 24 * 60
+    const h = Math.floor(mins / 60)
+    const m = mins % 60
+    return m > 0 ? `${h}h ${m}min (${dalle}–${alle})` : `${h}h (${dalle}–${alle})`
   }
 
-  // ── Formatta contesto giorni ──────────────────────────────────
-  let ctx = '\n\n=== Dati degli ultimi 4 giorni ===\n'
+  // ── Fase ciclo per un giorno specifico ───────────────────────
+  const PHASE_NAMES = ['Mestruale', 'Follicolare', 'Ovulatoria', 'Luteale']
+  const getFaseFor = (dateObj) => {
+    if (!cicloSnap.exists()) return ni
+    const c = cicloSnap.data()
+    if (!c.dataInizio) return ni
+    const ph = calcCyclePhase(c.dataInizio, c.durataCiclo, c.durataflusso, dateObj)
+    return `${PHASE_NAMES[ph.phaseIdx]}, giorno ${ph.dayInCycle} del ciclo`
+  }
 
-  daySnaps.forEach((snap, i) => {
-    const dateLabel = dayKeys[i]
-    const isToday   = dateLabel === todayKey
-    const score     = snap.exists() ? calcDayScore(snap.data()) : null
+  // ── Blocco per ogni giorno ────────────────────────────────────
+  const dayBlocks = daySnaps.map((snap, i) => {
+    const dateObj   = last4[i]
+    const dateKey   = dayKeys[i]
+    const isToday   = dateKey === todayKey
+    const dateLabel = dateObj.toLocaleDateString('it-IT', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    })
+    // Capitalizza prima lettera
+    const header = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)
 
-    let scoreLabel = ''
-    if (score !== null) {
-      scoreLabel = ` — Voto: ${score}/10`
-      if (isToday) scoreLabel += ' (provvisorio, cambierà con i dati della giornata)'
+    const lines = [`--- ${header}${isToday ? ' (OGGI)' : ''} ---`]
+
+    if (!snap.exists()) {
+      // Giorno senza documento: mostra tutti i campi come "non inserito"
+      lines.push(
+        `Passi: ${ni}`,
+        `Acqua: ${ni}`,
+        `Social media: ${ni} minuti`,
+        `Cyclette: ${ni} minuti`,
+        `Yoga: ${ni} minuti`,
+        `Zero zuccheri: ${ni}`,
+        `Ore di sonno: ${ni}`,
+        `Qualità sonno: ${ni}/10`,
+        `Umore (faccine): ${ni}`,
+        `Voto umore: ${ni}/10`,
+        `Task del giorno: nessuna task`,
+        `Small habits: nessuna habit`,
+        `Note: nessuna nota`,
+        `Voto giornaliero: non ancora calcolabile /10`,
+        `Fase ciclo: ${getFaseFor(dateObj)}`,
+      )
+      return lines.join('\n')
     }
-    ctx += `\n📅 ${dateLabel}${score !== null ? scoreLabel : ' — nessun dato'}\n`
 
-    if (snap.exists()) {
-      const d  = snap.data()
-      const ch = d.challenge ?? {}
+    const d  = snap.data()
+    const ch = d.challenge ?? {}
+    const sn = d.sonno     ?? {}
+    const um = d.umore     ?? {}
 
-      if (Number(ch.passi) || Number(ch.acqua) || Number(ch.social) ||
-          Number(ch.cyclette) || Number(ch.yoga) || ch.zeroZuccheri != null) {
-        ctx += `  Challenge: passi ${ch.passi || 0}`
-        if (Number(ch.acqua))    ctx += `, acqua ${ch.acqua}L`
-        if (Number(ch.social))   ctx += `, social ${ch.social}min`
-        if (Number(ch.cyclette)) ctx += `, cyclette ${ch.cyclette}min`
-        if (Number(ch.yoga))     ctx += `, yoga ${ch.yoga}min`
-        ctx += `, zero zuccheri: ${ch.zeroZuccheri ? 'Sì' : 'No'}`
-        ctx += '\n'
-      }
-
-      const sn = d.sonno ?? {}
-      if (sn.dalle && sn.alle) {
-        ctx += `  Sonno: ${sn.dalle}–${sn.alle}`
-        if (sn.qualita) ctx += `, qualità ${sn.qualita}/10`
-        ctx += '\n'
-      }
-
-      const um = d.umore ?? {}
-      if (um.voto) ctx += `  Umore: ${um.voto}/10\n`
-
-      const todos = d.todos ?? []
-      if (todos.length > 0) {
-        ctx += `  Task:\n`
-        todos.forEach(t => {
-          ctx += `    - ${t.text} (${t.done ? 'completata' : 'non completata'})\n`
-        })
-      }
-
-      const habits = (d.habits ?? []).filter(h => h.done)
-      if (habits.length > 0) ctx += `  Small habits: ${habits.map(h => h.text).join(', ')}\n`
-      if (d.note?.trim())    ctx += `  Note: "${d.note.trim()}"\n`
+    // Task
+    const todos = d.todos ?? []
+    let taskStr
+    if (todos.length === 0) {
+      taskStr = 'nessuna task'
+    } else {
+      taskStr = '\n' + todos.map(t => `  ${t.done ? '✓' : '○'} ${t.text}`).join('\n')
     }
+
+    // Small habits
+    const habits = d.habits ?? []
+    let habitsStr
+    if (habits.length === 0) {
+      habitsStr = 'nessuna habit'
+    } else {
+      habitsStr = '\n' + habits.map(h => `  ${h.done ? '✓' : '○'} ${h.text}`).join('\n')
+    }
+
+    // Faccine umore
+    const facceList = Array.isArray(um.faccine) && um.faccine.length > 0
+      ? um.faccine.join(' ')
+      : ni
+
+    // Voto giornaliero
+    const score = calcDayScore(d)
+    const votoStr = score !== null
+      ? `${score}/10${isToday ? ' (provvisorio)' : ''}`
+      : 'non ancora calcolabile /10'
+
+    lines.push(
+      `Passi: ${vNum(ch.passi)}`,
+      `Acqua: ${vNum(ch.acqua, 'L')}`,
+      `Social media: ${vNum(ch.social, ' minuti')}`,
+      `Cyclette: ${vNum(ch.cyclette, ' minuti')}`,
+      `Yoga: ${vNum(ch.yoga, ' minuti')}`,
+      `Zero zuccheri: ${vBool(ch.zeroZuccheri)}`,
+      `Ore di sonno: ${calcOre(sn.dalle, sn.alle)}`,
+      `Qualità sonno: ${sn.qualita != null ? sn.qualita + '/10' : ni}`,
+      `Umore (faccine): ${facceList}`,
+      `Voto umore: ${um.voto != null ? um.voto + '/10' : ni}`,
+      `Task del giorno: ${taskStr}`,
+      `Small habits: ${habitsStr}`,
+      `Note: ${d.note?.trim() ? d.note.trim() : 'nessuna nota'}`,
+      `Voto giornaliero: ${votoStr}`,
+      `Fase ciclo: ${getFaseFor(dateObj)}`,
+    )
+    return lines.join('\n')
   })
 
-  // ── Formatta contesto settimana ───────────────────────────────
+  // ── Obiettivi settimanali ─────────────────────────────────────
+  let goalsStr  = 'nessun obiettivo'
+  let noteSettStr = 'nessuna nota'
   if (weekSnap.exists()) {
     const wData = weekSnap.data()
-    const goals = wData.goals ?? []
+    const goals = wData.weeklyGoals ?? wData.goals ?? []
     if (goals.length > 0) {
-      ctx += '\n=== Obiettivi settimanali ===\n'
-      goals.forEach(g => { ctx += `${g.done ? '[✓]' : '[ ]'} ${g.text}\n` })
+      goalsStr = goals.map(g => `${g.done ? '[✓]' : '[ ]'} ${g.text}`).join('\n')
     }
-    if (wData.note?.trim()) ctx += `\nNote settimana: "${wData.note.trim()}"\n`
+    const noteSett = wData.noteSettimanali?.trim() ?? wData.note?.trim() ?? ''
+    if (noteSett) noteSettStr = noteSett
   }
 
-  return `Oggi è ${dataOggi}.\n\n${basePrompt}${profileSection}${cicloSection}${ctx}`
+  // ── Profilo utente ────────────────────────────────────────────
+  const userProfile = profiloSnap.exists()
+    ? (profiloSnap.data().testo?.trim() || 'non compilato')
+    : (localStorage.getItem('user_profile')?.trim() || 'non compilato')
+
+  // ── System prompt personalizzato ──────────────────────────────
+  const basePrompt = aiPromptSnap.exists()
+    ? (aiPromptSnap.data().testo?.trim() || DEFAULT_SYSTEM)
+    : (localStorage.getItem('ai_system_prompt')?.trim() || DEFAULT_SYSTEM)
+
+  // ── Data di oggi in italiano ──────────────────────────────────
+  const dataOggi = today.toLocaleDateString('it-IT', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
+  const dataOggiLabel = dataOggi.charAt(0).toUpperCase() + dataOggi.slice(1)
+
+  // ── Composizione finale ───────────────────────────────────────
+  return [
+    'Rispondi SOLO basandoti sui dati qui sotto.',
+    'Se un dato non è presente scrivi esplicitamente che non ce l\'hai.',
+    'Non fare mai supposizioni o inventare valori.',
+    '',
+    basePrompt,
+    '',
+    `DATA DI OGGI: ${dataOggiLabel}`,
+    '',
+    'DATI GIORNALIERI:',
+    '',
+    dayBlocks.join('\n\n'),
+    '',
+    'OBIETTIVI SETTIMANA CORRENTE:',
+    goalsStr,
+    '',
+    `NOTE SETTIMANALI: ${noteSettStr}`,
+    '',
+    `PROFILO UTENTE: ${userProfile}`,
+  ].join('\n')
 }
 
 // ════════════════════════════════════════════════════════════════
