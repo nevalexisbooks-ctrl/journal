@@ -175,7 +175,7 @@ const MOOD_EMOJI = ['🥰', '😌', '😑', '🫩', '🤒', '🥺', '🫨', '�
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
-export default function DetailScreen({ onBack, initialDate }) {
+export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) {
   // ── Data visualizzata (può partire da una data specifica) ────
   const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date())
   const future = isFutureDay(currentDate)
@@ -712,14 +712,20 @@ export default function DetailScreen({ onBack, initialDate }) {
         {/* ── NOTE (sempre attivo) ────────────────────────────── */}
         <section className={styles.cardSand}>
           <h2 className={styles.blockTitle}>Note</h2>
-          {/* TODO: Firebase — già gestito dall'auto-save sopra */}
           <textarea
             className={styles.noteArea}
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder="Scrivi qualcosa..."
-            rows={8}
+            rows={5}
           />
+          <button
+            className={styles.recapHabitBtn}
+            onClick={onOpenRecapHabit}
+            type="button"
+          >
+            📊 Recap Habit
+          </button>
         </section>
 
       </main>

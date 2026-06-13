@@ -403,19 +403,21 @@ export default function ChatScreen({ onBack }) {
     autoResize(e.target)
   }
 
-  // Desktop (hover: hover): Enter invia, Ctrl+Enter va a capo
-  // Mobile: Enter va a capo, invio solo con pulsante ➤
+  // Desktop: Enter invia, Shift+Enter e Ctrl+Enter vanno a capo
+  // Mobile:  Enter va a capo, invio solo col pulsante ➤
   const isDesktop = window.matchMedia('(hover: hover)').matches
 
   const handleKeyDown = (e) => {
     if (e.key !== 'Enter') return
-    if (isDesktop && !e.ctrlKey) {
+    if (isDesktop) {
+      if (e.shiftKey || e.ctrlKey) {
+        // lascia inserire il newline — comportamento nativo
+        return
+      }
       e.preventDefault()
       send()
-    } else if (isDesktop && e.ctrlKey) {
-      // lascia andare a capo — comportamento nativo
     }
-    // su mobile non intercettiamo nulla: Enter va a capo normalmente
+    // su mobile non intercettiamo nulla
   }
 
   // ════════════════════════════════════════════════════════════

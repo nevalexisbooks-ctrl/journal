@@ -552,3 +552,26 @@
   background-size: 100% 2rem;
 }
 .noteArea::placeholder { color: var(--text-muted); }
+
+/* ── PULSANTE RECAP HABIT (sotto le Note) ────────────────── */
+.recapHabitBtn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 16px;
+  background: var(--sand);
+  border: none;
+  border-radius: 12px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.recapHabitBtn:hover {
+  background: #cbb990;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+}

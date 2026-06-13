@@ -1,0 +1,278 @@
+/* ════════════════════════════════════════════════════════════════
+   RecapHabitScreen — griglia colore abitudini mensile
+════════════════════════════════════════════════════════════════ */
+
+.screen {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+.header {
+  background: var(--header);
+  background-image: linear-gradient(160deg, #96ad91 0%, var(--header) 100%);
+  border-radius: 0 0 32px 32px;
+  padding: 48px 24px 20px;
+  position: relative;
+  text-align: center;
+}
+
+.backBtn {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+.backBtn:hover { opacity: 1; }
+
+.headerTitle {
+  font-family: 'Dancing Script', cursive;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+
+/* Navigazione mese */
+.monthNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.navArrow {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'Open Sans', sans-serif;
+}
+.navArrow:hover { background: rgba(255,255,255,0.35); }
+
+.monthLabel {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  min-width: 160px;
+  text-align: center;
+}
+
+/* ── MAIN ────────────────────────────────────────────────────── */
+.main {
+  padding: 18px 14px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.loadingMsg {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 12px 0;
+}
+
+/* ── GRIGLIA / TABELLA ───────────────────────────────────────── */
+.tableWrapper {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* Scroll orizzontale su mobile */
+.tableScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 520px;  /* evita crushing su schermi stretti */
+}
+
+/* Intestazione */
+.thDay,
+.thHabit {
+  padding: 8px 4px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  background: var(--sage-light);
+  border-bottom: 2px solid rgba(0,0,0,0.06);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.thDay {
+  width: 40px;
+  min-width: 36px;
+  text-align: center;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--sage-light);
+}
+
+/* Celle */
+.tdDay {
+  padding: 3px 6px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  background: var(--bg);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  border-right: 1px solid rgba(0,0,0,0.06);
+}
+
+.tdCell {
+  padding: 3px 4px;
+  text-align: center;
+}
+
+/* Riga alternata leggermente più scura */
+.rowEven .tdDay {
+  background: #ede8e1;
+}
+
+/* ── CELLA COLORATA ──────────────────────────────────────────── */
+.cell {
+  width: 32px;
+  height: 28px;
+  border-radius: 6px;
+  margin: 0 auto;
+  position: relative;
+  cursor: default;
+  transition: transform 0.1s;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+.cell:hover { transform: scale(1.18); z-index: 10; }
+
+/* ── TOOLTIP ─────────────────────────────────────────────────── */
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: #fff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--text);
+}
+
+/* ── LEGENDA ─────────────────────────────────────────────────── */
+.legend {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 16px 16px 12px;
+}
+
+.legendTitle {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.legendName {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  width: 68px;
+  flex-shrink: 0;
+}
+
+/* Gradiente lineare */
+.legendGrad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.legendBar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.legendMin,
+.legendMax {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Binario (es. Zuccheri) */
+.legendBinary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.legendSep {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
