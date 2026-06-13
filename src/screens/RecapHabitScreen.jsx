@@ -42,8 +42,8 @@ function lerpHex(hex1, hex2, t) {
   return `rgb(${r},${g},${b})`
 }
 
-const FUTURE_COLOR = '#F0EDE8'
-const NO_DATA_COLOR = '#F0EDE8'
+const FUTURE_COLOR  = '#F2EDE6'   // sfondo app — giorni futuri
+const NO_DATA_COLOR = 'transparent' // valore zero/assente — cella invisibile
 
 // Acqua: fasce (stesse della Homepage) → %
 function waterPct(litri) {
@@ -69,8 +69,9 @@ const COLS = [
     label: 'Acqua',
     unit: 'L',
     colorFn: (ch) => {
+      if (ch.acqua == null || ch.acqua === '') return null
       const pct = waterPct(ch.acqua) / 100
-      if (pct === 0 && (ch.acqua == null || ch.acqua === '')) return null
+      if (pct === 0) return null   // <0.5L → trasparente come non inserito
       return lerpHex('#FFFFFF', '#5B9BD5', pct)
     },
     tooltip: (ch) => ch.acqua != null && ch.acqua !== '' ? `${ch.acqua}L` : null,
@@ -84,8 +85,9 @@ const COLS = [
     label: 'Passi',
     unit: '',
     colorFn: (ch) => {
+      if (ch.passi == null || ch.passi === '') return null
       const v = Number(ch.passi) || 0
-      if (v === 0 && (ch.passi == null || ch.passi === '')) return null
+      if (v === 0) return null   // 0 passi → trasparente
       const t = Math.min(1, v / 10000)
       return lerpHex('#FFFFFF', '#8A9E85', t)
     },
@@ -118,8 +120,9 @@ const COLS = [
     label: 'Cyclette',
     unit: 'min',
     colorFn: (ch) => {
+      if (ch.cyclette == null || ch.cyclette === '') return null
       const v = Number(ch.cyclette) || 0
-      if (v === 0 && (ch.cyclette == null || ch.cyclette === '')) return null
+      if (v === 0) return null   // 0 min → trasparente
       const t = Math.min(1, v / 60)
       return lerpHex('#FFFFFF', '#E8956D', t)
     },
@@ -134,8 +137,9 @@ const COLS = [
     label: 'Yoga',
     unit: 'min',
     colorFn: (ch) => {
+      if (ch.yoga == null || ch.yoga === '') return null
       const v = Number(ch.yoga) || 0
-      if (v === 0 && (ch.yoga == null || ch.yoga === '')) return null
+      if (v === 0) return null   // 0 min → trasparente
       const t = Math.min(1, v / 60)
       return lerpHex('#FFFFFF', '#9B72CF', t)
     },
@@ -379,10 +383,13 @@ export default function RecapHabitScreen({ onBack }) {
 
           {/* Legenda celle speciali */}
           <div className={styles.legendRow}>
-            <span className={styles.legendName}>Non inserito</span>
+            <span className={styles.legendName}>Zero / assente</span>
             <div className={styles.legendBinary}>
-              <span className={styles.legendSwatch} style={{ background: NO_DATA_COLOR, border: '1px solid #ddd' }} />
-              <span className={styles.legendMin}>grigio chiaro</span>
+              <span className={styles.legendSwatch} style={{ background: 'transparent', border: '1px dashed #bbb' }} />
+              <span className={styles.legendMin}>trasparente</span>
+              <span className={styles.legendSep}>·</span>
+              <span className={styles.legendSwatch} style={{ background: FUTURE_COLOR, border: '1px solid #ddd' }} />
+              <span className={styles.legendMin}>giorni futuri</span>
             </div>
           </div>
         </section>

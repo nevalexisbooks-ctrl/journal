@@ -75,10 +75,10 @@
 
 /* ── MAIN ────────────────────────────────────────────────────── */
 .main {
-  padding: 18px 14px 48px;
+  padding: 14px 8px 48px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .loadingMsg {
@@ -93,41 +93,42 @@
   background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow: visible;  /* lascia uscire i tooltip */
 }
 
-/* Scroll orizzontale su mobile */
 .tableScroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
+  border-radius: var(--radius-lg);
 }
 
 .table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 520px;  /* evita crushing su schermi stretti */
+  /* Nessun min-width: la tabella si adatta alla viewport */
+  table-layout: fixed;
 }
 
 /* Intestazione */
 .thDay,
 .thHabit {
-  padding: 8px 4px;
+  padding: 6px 1px;
   font-family: 'Open Sans', sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.56rem;
   font-weight: 800;
   color: var(--text);
   text-align: center;
   background: var(--sage-light);
   border-bottom: 2px solid rgba(0,0,0,0.06);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   position: sticky;
   top: 0;
   z-index: 2;
 }
 
 .thDay {
-  width: 40px;
-  min-width: 36px;
+  width: 26px;
   text-align: center;
   position: sticky;
   left: 0;
@@ -137,9 +138,9 @@
 
 /* Celle */
 .tdDay {
-  padding: 3px 6px;
+  padding: 2px 2px;
   font-family: 'Open Sans', sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   color: var(--text-muted);
   text-align: center;
@@ -148,10 +149,11 @@
   left: 0;
   z-index: 1;
   border-right: 1px solid rgba(0,0,0,0.06);
+  width: 26px;
 }
 
 .tdCell {
-  padding: 3px 4px;
+  padding: 2px 2px;
   text-align: center;
 }
 
@@ -162,16 +164,17 @@
 
 /* ── CELLA COLORATA ──────────────────────────────────────────── */
 .cell {
-  width: 32px;
-  height: 28px;
-  border-radius: 6px;
+  width: 100%;
+  max-width: 36px;
+  height: 22px;
+  border-radius: 4px;
   margin: 0 auto;
   position: relative;
   cursor: default;
   transition: transform 0.1s;
-  border: 1px solid rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.04);
 }
-.cell:hover { transform: scale(1.18); z-index: 10; }
+.cell:hover { transform: scale(1.25); z-index: 10; }
 
 /* ── TOOLTIP ─────────────────────────────────────────────────── */
 .tooltip {
