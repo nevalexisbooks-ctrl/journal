@@ -178,7 +178,13 @@ const MOOD_EMOJI = ['🥰', '😌', '😑', '🫩', '🤒', '🥺', '🫨', '�
 export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) {
   // ── Data visualizzata (può partire da una data specifica) ────
   const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date())
-  const future = isFutureDay(currentDate)
+  const future  = isFutureDay(currentDate)
+  // "oggi" → nessun pulsante elimina task (solo modifica)
+  const isToday = (() => {
+    const t = new Date(); t.setHours(0, 0, 0, 0)
+    const d = new Date(currentDate); d.setHours(0, 0, 0, 0)
+    return t.getTime() === d.getTime()
+  })()
 
   // ── Stato locale della giornata ──────────────────────────────
   const [todos,      setTodos]      = useState([])
@@ -463,12 +469,15 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
                       aria-label="Modifica task"
                       title="Modifica"
                     >✏️</button>
-                    <button
-                      className={`${styles.todoActionBtn} ${styles.deleteBtnTodo}`}
-                      onClick={(e) => { e.stopPropagation(); deleteTodo(t.id) }}
-                      aria-label="Elimina task"
-                      title="Elimina"
-                    >✕</button>
+                    {/* X visibile solo per giorni passati e futuri — non per oggi */}
+                    {!isToday && (
+                      <button
+                        className={`${styles.todoActionBtn} ${styles.deleteBtnTodo}`}
+                        onClick={(e) => { e.stopPropagation(); deleteTodo(t.id) }}
+                        aria-label="Elimina task"
+                        title="Elimina"
+                      >✕</button>
+                    )}
                   </div>
                 )}
               </li>

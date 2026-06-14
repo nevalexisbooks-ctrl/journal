@@ -290,30 +290,90 @@ async function callProxy(messages, systemPrompt, signal) {
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
+// Prompt aggiuntivo per il saluto automatico all'apertura
+const GREETING_INSTRUCTION =
+  'L\'utente ha appena aperto la chat. Salutala brevemente e in modo naturale con una frase corta ' +
+  'tipo "Ciao, dimmi pure" o simile. NON elencare dati, NON fare analisi, NON fare domande. ' +
+  'Solo un saluto caldo e breve.'
+
 export default function ChatScreen({ onBack }) {
-  const [messages,       setMessages]       = useState([{ role: 'assistant', content: WELCOME_MSG }])
+  const [messages,       setMessages]       = useState([])
   const [input,          setInput]          = useState('')
   const [loading,        setLoading]        = useState(false)
   const [historyLoaded,  setHistoryLoaded]  = useState(false)
+  const [greeting,       setGreeting]       = useState(true)  // sta eseguendo il saluto iniziale
   const [keyboardOffset, setKeyboardOffset] = useState(0)
 
   const bottomRef    = useRef(null)
   const inputRef     = useRef(null)
   const abortRef     = useRef(null)   // AbortController corrente
 
-  // Carica cronologia da Firestore al mount
+  // ── Mount: carica cronologia + genera saluto automatico ─────
   useEffect(() => {
-    loadHistoryFromFirestore().then(msgs => {
-      setMessages(msgs)
-      setHistoryLoaded(true)
-    })
-  }, [])
+    let cancelled = false
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    async function init() {
+      // 1. Carica cronologia esistente
+      const history = await loadHistoryFromFirestore()
+
+      if (cancelled) return
+
+      // 2. Mostra "..." mentre prepariamo il saluto
+      setMessages([
+        ...history,
+        { role: 'assistant', content: '…', timestamp: Date.now(), isTyping: true },
+      ])
+      setLoading(true)
+
+      try {
+        // 3. Costruisci contesto fresco da Firestore
+        const systemPrompt = await buildSystemPrompt()
+        const greetSystem  = `${systemPrompt}\n\n${GREETING_INSTRUCTION}`
+
+        // 4. Chiama l'AI con solo il messaggio di apertura (nessun history utente)
+        const greetMsg = await callProxy(
+          [{ role: 'user', content: 'apertura chat' }],
+          greetSystem,
+          controller.signal,
+        )
+
+        if (cancelled) return
+
+        // 5. Sostituisci "..." con il saluto reale, preposto alla cronologia
+        const greetBubble = { role: 'assistant', content: greetMsg, timestamp: Date.now() }
+        setMessages([greetBubble, ...history])
+      } catch (err) {
+        if (cancelled) return
+        if (err.name !== 'AbortError') {
+          // In caso di errore mostra comunque il messaggio di benvenuto statico
+          setMessages([{ role: 'assistant', content: WELCOME_MSG, timestamp: Date.now() }, ...history])
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+          setGreeting(false)
+          setHistoryLoaded(true)
+        }
+      }
+    }
+
+    init()
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Salva su Firestore ad ogni aggiornamento (dopo il caricamento iniziale)
+  // Non salviamo il saluto generativo — solo la cronologia "reale"
   useEffect(() => {
-    if (!historyLoaded) return
-    saveHistoryToFirestore(messages)
-  }, [messages, historyLoaded])
+    if (!historyLoaded || greeting) return
+    // Salva solo i messaggi a partire dal secondo (esclude il saluto generativo in cima)
+    const toSave = messages.slice(1).filter(m => !m.isTyping)
+    saveHistoryToFirestore(toSave)
+  }, [messages, historyLoaded, greeting])
 
   // Scroll automatico all'ultimo messaggio
   useEffect(() => {
@@ -356,8 +416,9 @@ export default function ChatScreen({ onBack }) {
     abortRef.current = controller
 
     try {
+      // Escludi: il saluto generativo in cima (indice 0) e le bolle "isTyping"
       const apiHistory = [
-        ...messages.filter((_, i) => i > 0),
+        ...messages.filter((m, i) => i > 0 && !m.isTyping),
         userMsg,
       ]
       const systemPrompt = await buildSystemPrompt()
@@ -444,15 +505,25 @@ export default function ChatScreen({ onBack }) {
         style={{ paddingBottom: `${160 + keyboardOffset}px` }}
       >
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`${styles.bubble} ${m.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant}`}
-          >
-            {m.content}
-          </div>
+          m.isTyping ? (
+            /* Bolla animata "..." — usata durante il saluto iniziale */
+            <div key={i} className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.bubbleTyping}`}>
+              <span className={styles.dot} />
+              <span className={styles.dot} />
+              <span className={styles.dot} />
+            </div>
+          ) : (
+            <div
+              key={i}
+              className={`${styles.bubble} ${m.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant}`}
+            >
+              {m.content}
+            </div>
+          )
         ))}
 
-        {loading && (
+        {/* Bolla animata durante l'invio di messaggi normali */}
+        {loading && !greeting && (
           <div className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.bubbleTyping}`}>
             <span className={styles.dot} />
             <span className={styles.dot} />
@@ -474,7 +545,7 @@ export default function ChatScreen({ onBack }) {
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Scrivi un messaggio…"
+          placeholder={greeting ? 'Preparazione in corso…' : 'Scrivi un messaggio…'}
           rows={1}
           disabled={loading}
         />
