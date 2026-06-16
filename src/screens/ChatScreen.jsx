@@ -1,6 +1,6 @@
 // ─── ChatScreen — Chat con l'Assistente AI ───────────────────────────────────
 // Prima di ogni invio raccoglie da Firestore:
-//   - Ultimi 4 giorni da giorni/{YYYY-MM-DD}
+//   - Oggi e ieri da giorni/{YYYY-MM-DD}
 //   - Goals e note settimanali da settimane/{YYYY-WNN}  (NON il menù)
 //   - settings/ciclo per fase mestruale corrente
 //   - Profilo utente da Firestore settings/profilo
@@ -17,7 +17,7 @@ import styles from './ChatScreen.module.css'
 
 // ── Endpoint Firebase Function proxy ──────────────────────────────────────────
 const PROXY_URL = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
-const CLAUDE_MODEL = 'claude-sonnet-4-5'
+const CLAUDE_MODEL = 'claude-haiku-3-5'
 
 // ── System prompt di default ───────────────────────────────────────────────────
 const DEFAULT_SYSTEM =
@@ -67,8 +67,8 @@ async function buildSystemPrompt() {
   const today    = new Date()
   const todayKey = toDateKey(today)
 
-  // Ultimi 4 giorni (oggi = indice 0, ieri = indice 1, …)
-  const last4   = Array.from({ length: 4 }, (_, i) => {
+  // Oggi e ieri (indice 0 = oggi, indice 1 = ieri)
+  const last4   = Array.from({ length: 2 }, (_, i) => {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
     return d
@@ -244,7 +244,7 @@ async function buildSystemPrompt() {
     '',
     `DATA DI OGGI: ${dataOggiLabel}`,
     '',
-    'DATI GIORNALIERI:',
+    'DATI GIORNALIERI (oggi e ieri):',
     '',
     dayBlocks.join('\n\n'),
     '',
