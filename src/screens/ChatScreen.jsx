@@ -17,7 +17,7 @@ import styles from './ChatScreen.module.css'
 
 // ── Endpoint Firebase Function proxy ──────────────────────────────────────────
 const PROXY_URL = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
-const CLAUDE_MODEL = 'claude-haiku-3-5'
+const CLAUDE_MODEL = 'claude-haiku-4-5'
 
 // ── System prompt di default ───────────────────────────────────────────────────
 const DEFAULT_SYSTEM =
