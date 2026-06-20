@@ -269,6 +269,117 @@
   margin: 0;
 }
 
+/* ── MEMORIA ASSISTENTE ──────────────────────────────────────── */
+.memorieEmpty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.memorieList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.memoriaItem {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+}
+.memoriaItem:last-child { border-bottom: none; }
+
+.memoriaData {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+/* Riga testo + azioni */
+.memoriaTextRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.memoriaTesto {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.memoriaActionBtn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: none;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.memoriaActionBtn:hover { background: var(--sage-light); }
+
+.memoriaDeleteBtn {
+  background: #fce8e8;
+  color: #c0392b;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.memoriaDeleteBtn:hover { background: #f5c6c6; }
+
+/* Riga modifica inline */
+.memoriaEditRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.memoriaInput {
+  flex: 1;
+  background: var(--bg);
+  border: 1.5px solid var(--header);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 5px 9px;
+  outline: none;
+}
+
+.memoriaConfirmBtn {
+  width: 28px; height: 28px;
+  border-radius: 7px; border: none;
+  background: var(--header); color: #fff;
+  font-size: 0.8rem; font-weight: 800;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+.memoriaConfirmBtn:hover { opacity: 0.85; }
+
+.memoriaAnnullaBtn {
+  width: 28px; height: 28px;
+  border-radius: 7px; border: none;
+  background: #fce8e8; color: #c0392b;
+  font-size: 0.65rem; font-weight: 800;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.memoriaAnnullaBtn:hover { background: #f5c6c6; }
+
 /* ── VERSIONE APP ────────────────────────────────────────────── */
 .appVersion {
   text-align: center;

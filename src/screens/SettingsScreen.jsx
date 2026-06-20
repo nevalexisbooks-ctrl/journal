@@ -6,8 +6,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import packageJson from '../../package.json'
 import {
-  doc, getDoc, setDoc,
-  collection, getDocs, writeBatch,
+  doc, getDoc, setDoc, updateDoc, deleteDoc,
+  collection, getDocs, addDoc, writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import styles from './SettingsScreen.module.css'
@@ -57,6 +57,11 @@ export default function SettingsScreen({ onBack }) {
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsSaved,  setSettingsSaved]  = useState(false)
 
+  // ── Memorie assistente ────────────────────────────────────────────────────
+  const [memorie,      setMemorie]      = useState([])   // [{id, testo, data}]
+  const [memoriaEdit,  setMemoriaEdit]  = useState(null) // id in modifica
+  const [memoriaText,  setMemoriaText]  = useState('')   // testo nell'input
+
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading,     setLoading]     = useState(true)
 
@@ -71,11 +76,12 @@ export default function SettingsScreen({ onBack }) {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const [cicloSnap, habitsSnap, profiloSnap, promptSnap] = await Promise.all([
+        const [cicloSnap, habitsSnap, profiloSnap, promptSnap, memorieSnap] = await Promise.all([
           getDoc(doc(db, 'settings', 'ciclo')),
           getDoc(doc(db, 'settings', 'habits')),
           getDoc(doc(db, 'settings', 'profilo')),
           getDoc(doc(db, 'settings', 'aiPrompt')),
+          getDocs(collection(db, 'memoria')),
         ])
         if (cicloSnap.exists())   setCiclo(cicloSnap.data())
         if (habitsSnap.exists())  setHabits(habitsSnap.data().habits ?? [])
@@ -91,6 +97,11 @@ export default function SettingsScreen({ onBack }) {
         } else {
           setAiPrompt(localStorage.getItem('ai_system_prompt') ?? DEFAULT_PROMPT)
         }
+        // Memorie: carica e ordina per data decrescente
+        const voci = []
+        memorieSnap.forEach(d => voci.push({ id: d.id, ...d.data() }))
+        voci.sort((a, b) => (b.data ?? 0) - (a.data ?? 0))
+        setMemorie(voci)
       } catch (err) {
         console.error('Errore caricamento settings:', err)
         setAiPrompt(DEFAULT_PROMPT)
@@ -222,6 +233,46 @@ export default function SettingsScreen({ onBack }) {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════
+  //  HANDLERS — MEMORIE
+  // ════════════════════════════════════════════════════════════════
+
+  const startEditMemoria = (m) => {
+    setMemoriaEdit(m.id)
+    setMemoriaText(m.testo)
+  }
+
+  const confirmEditMemoria = async (id) => {
+    if (!memoriaText.trim()) return
+    try {
+      await updateDoc(doc(db, 'memoria', id), { testo: memoriaText.trim() })
+      setMemorie(prev => prev.map(m => m.id === id ? { ...m, testo: memoriaText.trim() } : m))
+    } catch (err) {
+      console.error('Errore aggiornamento memoria:', err)
+    } finally {
+      setMemoriaEdit(null)
+      setMemoriaText('')
+    }
+  }
+
+  const deleteMemoria = async (id) => {
+    const ok = window.confirm('Eliminare questa voce di memoria?')
+    if (!ok) return
+    try {
+      await deleteDoc(doc(db, 'memoria', id))
+      setMemorie(prev => prev.filter(m => m.id !== id))
+    } catch (err) {
+      console.error('Errore eliminazione memoria:', err)
+    }
+  }
+
+  const formatDataMemoria = (ts) => {
+    if (!ts) return '—'
+    return new Date(ts).toLocaleDateString('it-IT', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    })
+  }
+
   const saveImpostazioni = async () => {
     setSettingsSaving(true)
     try {
@@ -289,6 +340,65 @@ export default function SettingsScreen({ onBack }) {
             rows={5}
             placeholder="Nome, età, stile di vita, obiettivi, preferenze…"
           />
+        </section>
+
+        {/* ── MEMORIA ASSISTENTE ──────────────────────────────── */}
+        <section className={styles.cardWhite}>
+          <h2 className={styles.blockTitle}>Memoria Assistente</h2>
+          <p className={styles.blockSub}>
+            L'assistente salva automaticamente le informazioni importanti emerse nelle conversazioni.
+            Puoi modificarle o eliminarle.
+          </p>
+
+          {memorie.length === 0 ? (
+            <p className={styles.memorieEmpty}>Nessuna memoria salvata ancora.</p>
+          ) : (
+            <ul className={styles.memorieList}>
+              {memorie.map(m => (
+                <li key={m.id} className={styles.memoriaItem}>
+                  <span className={styles.memoriaData}>{formatDataMemoria(m.data)}</span>
+
+                  {memoriaEdit === m.id ? (
+                    <div className={styles.memoriaEditRow}>
+                      <input
+                        className={styles.memoriaInput}
+                        value={memoriaText}
+                        onChange={e => setMemoriaText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') confirmEditMemoria(m.id) }}
+                        autoFocus
+                      />
+                      <button
+                        className={styles.memoriaConfirmBtn}
+                        onClick={() => confirmEditMemoria(m.id)}
+                        aria-label="Conferma modifica"
+                      >✓</button>
+                      <button
+                        className={styles.memoriaAnnullaBtn}
+                        onClick={() => { setMemoriaEdit(null); setMemoriaText('') }}
+                        aria-label="Annulla"
+                      >✕</button>
+                    </div>
+                  ) : (
+                    <div className={styles.memoriaTextRow}>
+                      <span className={styles.memoriaTesto}>{m.testo}</span>
+                      <button
+                        className={styles.memoriaActionBtn}
+                        onClick={() => startEditMemoria(m)}
+                        aria-label="Modifica"
+                        title="Modifica"
+                      >✏️</button>
+                      <button
+                        className={`${styles.memoriaActionBtn} ${styles.memoriaDeleteBtn}`}
+                        onClick={() => deleteMemoria(m.id)}
+                        aria-label="Elimina"
+                        title="Elimina"
+                      >✕</button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         {/* ── CALENDARIO DEL CICLO ────────────────────────────── */}

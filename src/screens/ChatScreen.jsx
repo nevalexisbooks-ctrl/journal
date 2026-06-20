@@ -1,25 +1,26 @@
 // ─── ChatScreen — Chat con l'Assistente AI ───────────────────────────────────
-// Prima di ogni invio raccoglie da Firestore:
+// Contesto AI per ogni messaggio:
 //   - Oggi e ieri da giorni/{YYYY-MM-DD}
-//   - Goals e note settimanali da settimane/{YYYY-WNN}  (NON il menù)
-//   - settings/ciclo per fase mestruale corrente
-//   - Profilo utente da Firestore settings/profilo
-//   - System prompt da localStorage 'ai_system_prompt'
+//   - Obiettivi settimanali da settimane/{YYYY-WNN}  (NON il menù)
+//   - Profilo utente da settings/profilo
+//   - System prompt da settings/aiPrompt
+//   - Memorie persistenti da collection `memoria`
+//   - Ultimi 10 messaggi della cronologia
 // Cronologia chat salvata su Firestore collection 'chat' doc 'storia'.
-// La chiamata API passa per la Firebase Function claudeProxy (nessun CORS).
+// Memoria persistente su collection `memoria` (auto-ID per voce).
+// La chiamata API passa per la Firebase Function claudeProxy.
 import React, { useState, useEffect, useRef } from 'react'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, getDocs, addDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
-  toDateKey, toWeekKey, getMonday, getWeekDays, calcDayScore, calcCyclePhase,
+  toDateKey, toWeekKey, calcDayScore, calcCyclePhase,
 } from '../utils/calcWidgets.js'
 import styles from './ChatScreen.module.css'
 
-// ── Endpoint Firebase Function proxy ──────────────────────────────────────────
-const PROXY_URL = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
+// ── Costanti ────────────────────────────────────────────────────────────────────
+const PROXY_URL   = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
 const CLAUDE_MODEL = 'claude-haiku-4-5'
 
-// ── System prompt di default ───────────────────────────────────────────────────
 const DEFAULT_SYSTEM =
   'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
   'Usa queste informazioni per rispondere in modo personalizzato, riconoscere pattern e offrire supporto. ' +
@@ -27,8 +28,46 @@ const DEFAULT_SYSTEM =
 
 const WELCOME_MSG = 'Ciao! Sono qui per aiutarti a riflettere e crescere. Cosa hai in mente oggi? 🌱'
 
+const SAVE_PREFIX = 'salva questa informazione importante nelle memorie:'
+
+const GREETING_INSTRUCTION =
+  'L\'utente ha appena aperto la chat. Salutala brevemente e in modo naturale con una frase corta ' +
+  'tipo "Ciao, dimmi pure" o simile. NON elencare dati, NON fare analisi, NON fare domande. ' +
+  'Solo un saluto caldo e breve.'
+
 // ════════════════════════════════════════════════════════════════
-//  PERSISTENZA FIRESTORE
+//  MEMORIA PERSISTENTE — collection `memoria`
+// ════════════════════════════════════════════════════════════════
+
+/** Carica tutte le voci di memoria ordinate per data decrescente */
+async function loadMemorie() {
+  try {
+    const snap = await getDocs(collection(db, 'memoria'))
+    const voci = []
+    snap.forEach(d => voci.push({ id: d.id, ...d.data() }))
+    // ordina per data decrescente
+    voci.sort((a, b) => (b.data ?? 0) - (a.data ?? 0))
+    return voci
+  } catch (err) {
+    console.warn('Errore caricamento memorie:', err)
+    return []
+  }
+}
+
+/** Salva una nuova voce di memoria */
+async function saveMemoria(testo) {
+  try {
+    await addDoc(collection(db, 'memoria'), {
+      testo: testo.trim(),
+      data:  Date.now(),
+    })
+  } catch (err) {
+    console.warn('Errore salvataggio memoria:', err)
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PERSISTENZA CRONOLOGIA CHAT
 // ════════════════════════════════════════════════════════════════
 
 async function loadHistoryFromFirestore() {
@@ -60,20 +99,20 @@ async function saveHistoryToFirestore(messages) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  RACCOLTA CONTESTO DA FIRESTORE + localStorage
+//  COSTRUZIONE SYSTEM PROMPT
 // ════════════════════════════════════════════════════════════════
 
-async function buildSystemPrompt() {
+async function buildSystemPrompt(memorie = []) {
   const today    = new Date()
   const todayKey = toDateKey(today)
 
   // Oggi e ieri (indice 0 = oggi, indice 1 = ieri)
-  const last4   = Array.from({ length: 2 }, (_, i) => {
+  const last2   = Array.from({ length: 2 }, (_, i) => {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
     return d
   })
-  const dayKeys = last4.map(d => toDateKey(d))
+  const dayKeys = last2.map(d => toDateKey(d))
   const weekKey = toWeekKey(today)
 
   // Carica tutto in parallelo da Firestore
@@ -87,14 +126,10 @@ async function buildSystemPrompt() {
 
   // ── Helpers ───────────────────────────────────────────────────
   const ni = 'non inserito'
-  const v  = (val) => (val != null && val !== '' ? String(val) : ni)
   const vNum = (val, unit = '') =>
-    (val != null && val !== '' && Number(val) !== 0)
-      ? `${val}${unit}`
-      : ni
+    (val != null && val !== '' && Number(val) !== 0) ? `${val}${unit}` : ni
   const vBool = (val) => (val == null ? ni : val ? 'Sì' : 'No')
 
-  // ── Calcola ore di sonno da "HH:MM"–"HH:MM" ──────────────────
   const calcOre = (dalle, alle) => {
     if (!dalle || !alle) return ni
     const [dh, dm] = dalle.split(':').map(Number)
@@ -106,7 +141,6 @@ async function buildSystemPrompt() {
     return m > 0 ? `${h}h ${m}min (${dalle}–${alle})` : `${h}h (${dalle}–${alle})`
   }
 
-  // ── Fase ciclo per un giorno specifico ───────────────────────
   const PHASE_NAMES = ['Mestruale', 'Follicolare', 'Ovulatoria', 'Luteale']
   const getFaseFor = (dateObj) => {
     if (!cicloSnap.exists()) return ni
@@ -118,34 +152,23 @@ async function buildSystemPrompt() {
 
   // ── Blocco per ogni giorno ────────────────────────────────────
   const dayBlocks = daySnaps.map((snap, i) => {
-    const dateObj   = last4[i]
+    const dateObj   = last2[i]
     const dateKey   = dayKeys[i]
     const isToday   = dateKey === todayKey
     const dateLabel = dateObj.toLocaleDateString('it-IT', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
-    // Capitalizza prima lettera
     const header = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)
-
-    const lines = [`--- ${header}${isToday ? ' (OGGI)' : ''} ---`]
+    const lines  = [`--- ${header}${isToday ? ' (OGGI)' : ''} ---`]
 
     if (!snap.exists()) {
-      // Giorno senza documento: mostra tutti i campi come "non inserito"
       lines.push(
-        `Passi: ${ni}`,
-        `Acqua: ${ni}`,
-        `Social media: ${ni} minuti`,
-        `Cyclette: ${ni} minuti`,
-        `Yoga: ${ni} minuti`,
-        `Zero zuccheri: ${ni}`,
-        `Ore di sonno: ${ni}`,
-        `Qualità sonno: ${ni}/10`,
-        `Umore (faccine): ${ni}`,
-        `Voto umore: ${ni}/10`,
-        `Task del giorno: nessuna task`,
-        `Small habits: nessuna habit`,
-        `Note: nessuna nota`,
-        `Voto giornaliero: non ancora calcolabile /10`,
+        `Passi: ${ni}`, `Acqua: ${ni}`, `Social media: ${ni} minuti`,
+        `Cyclette: ${ni} minuti`, `Yoga: ${ni} minuti`, `Zero zuccheri: ${ni}`,
+        `Ore di sonno: ${ni}`, `Qualità sonno: ${ni}/10`,
+        `Umore (faccine): ${ni}`, `Voto umore: ${ni}/10`,
+        `Task del giorno: nessuna task`, `Small habits: nessuna habit`,
+        `Note: nessuna nota`, `Voto giornaliero: non ancora calcolabile /10`,
         `Fase ciclo: ${getFaseFor(dateObj)}`,
       )
       return lines.join('\n')
@@ -156,31 +179,20 @@ async function buildSystemPrompt() {
     const sn = d.sonno     ?? {}
     const um = d.umore     ?? {}
 
-    // Task
     const todos = d.todos ?? []
-    let taskStr
-    if (todos.length === 0) {
-      taskStr = 'nessuna task'
-    } else {
-      taskStr = '\n' + todos.map(t => `  ${t.done ? '✓' : '○'} ${t.text}`).join('\n')
-    }
+    const taskStr = todos.length === 0
+      ? 'nessuna task'
+      : '\n' + todos.map(t => `  ${t.done ? '✓' : '○'} ${t.text}`).join('\n')
 
-    // Small habits
     const habits = d.habits ?? []
-    let habitsStr
-    if (habits.length === 0) {
-      habitsStr = 'nessuna habit'
-    } else {
-      habitsStr = '\n' + habits.map(h => `  ${h.done ? '✓' : '○'} ${h.text}`).join('\n')
-    }
+    const habitsStr = habits.length === 0
+      ? 'nessuna habit'
+      : '\n' + habits.map(h => `  ${h.done ? '✓' : '○'} ${h.text}`).join('\n')
 
-    // Faccine umore
     const facceList = Array.isArray(um.faccine) && um.faccine.length > 0
-      ? um.faccine.join(' ')
-      : ni
+      ? um.faccine.join(' ') : ni
 
-    // Voto giornaliero
-    const score = calcDayScore(d)
+    const score   = calcDayScore(d)
     const votoStr = score !== null
       ? `${score}/10${isToday ? ' (provvisorio)' : ''}`
       : 'non ancora calcolabile /10'
@@ -206,14 +218,13 @@ async function buildSystemPrompt() {
   })
 
   // ── Obiettivi settimanali ─────────────────────────────────────
-  let goalsStr  = 'nessun obiettivo'
+  let goalsStr    = 'nessun obiettivo'
   let noteSettStr = 'nessuna nota'
   if (weekSnap.exists()) {
     const wData = weekSnap.data()
     const goals = wData.weeklyGoals ?? wData.goals ?? []
-    if (goals.length > 0) {
+    if (goals.length > 0)
       goalsStr = goals.map(g => `${g.done ? '[✓]' : '[ ]'} ${g.text}`).join('\n')
-    }
     const noteSett = wData.noteSettimanali?.trim() ?? wData.note?.trim() ?? ''
     if (noteSett) noteSettStr = noteSett
   }
@@ -234,6 +245,20 @@ async function buildSystemPrompt() {
   })
   const dataOggiLabel = dataOggi.charAt(0).toUpperCase() + dataOggi.slice(1)
 
+  // ── Sezione memorie ───────────────────────────────────────────
+  let memorieSection = ''
+  if (memorie.length > 0) {
+    const righe = memorie.map(m => {
+      const d = m.data
+        ? new Date(m.data).toLocaleDateString('it-IT', {
+            day: 'numeric', month: 'long', year: 'numeric',
+          })
+        : '—'
+      return `${d}: ${m.testo}`
+    }).join('\n')
+    memorieSection = `\nMEMORIE IMPORTANTI:\n${righe}\n`
+  }
+
   // ── Composizione finale ───────────────────────────────────────
   return [
     'Rispondi SOLO basandoti sui dati qui sotto.',
@@ -241,7 +266,7 @@ async function buildSystemPrompt() {
     'Non fare mai supposizioni o inventare valori.',
     '',
     basePrompt,
-    '',
+    memorieSection,
     `DATA DI OGGI: ${dataOggiLabel}`,
     '',
     'DATI GIORNALIERI (oggi e ieri):',
@@ -261,16 +286,14 @@ async function buildSystemPrompt() {
 //  CHIAMATA AL PROXY FIREBASE
 // ════════════════════════════════════════════════════════════════
 
-async function callProxy(messages, systemPrompt, signal) {
-  console.log('[ChatScreen] Chiamata a claudeProxy →', PROXY_URL)
-  console.log('[ChatScreen] Messaggi inviati:', messages.length, '| Modello:', CLAUDE_MODEL)
+async function callProxy(messages, systemPrompt, signal, maxTokens = 350) {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal,
     body: JSON.stringify({
       model:      CLAUDE_MODEL,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       system:     systemPrompt,
       messages:   messages.map(m => ({ role: m.role, content: m.content })),
     }),
@@ -287,40 +310,75 @@ async function callProxy(messages, systemPrompt, signal) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  COMPONENTE
+//  ESTRAZIONE MEMORIA SILENZIOSA (dopo ogni risposta AI)
 // ════════════════════════════════════════════════════════════════
 
-// Prompt aggiuntivo per il saluto automatico all'apertura
-const GREETING_INSTRUCTION =
-  'L\'utente ha appena aperto la chat. Salutala brevemente e in modo naturale con una frase corta ' +
-  'tipo "Ciao, dimmi pure" o simile. NON elencare dati, NON fare analisi, NON fare domande. ' +
-  'Solo un saluto caldo e breve.'
+const EXTRACT_SYSTEM =
+  'Analizza l\'ultimo scambio di messaggi. ' +
+  'C\'è qualcosa di veramente importante da memorizzare a lungo termine? ' +
+  '(obiettivi importanti, eventi significativi, informazioni personali rilevanti emerse). ' +
+  'Se sì, rispondi SOLO con un JSON valido in questo formato:\n{"testo": "..."}\n' +
+  'Se non c\'è nulla di importante rispondi SOLO con: null\n' +
+  'Non aggiungere niente altro, nessun testo fuori dal JSON.'
+
+async function extractAndSaveMemory(userText, aiReply) {
+  try {
+    const raw = await callProxy(
+      [
+        { role: 'user',      content: userText  },
+        { role: 'assistant', content: aiReply   },
+        { role: 'user',      content: 'Analizza questo scambio come descritto nelle istruzioni.' },
+      ],
+      EXTRACT_SYSTEM,
+      null,   // nessun signal — task in background
+      150,    // max_tokens ridotto
+    )
+
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed === 'null') return
+
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed.testo === 'string' && parsed.testo.trim()) {
+      await saveMemoria(parsed.testo)
+      console.log('[Memoria] Salvata:', parsed.testo)
+    }
+  } catch (err) {
+    // Silenzioso: non impatta l'esperienza utente
+    console.warn('[Memoria] Estrazione fallita:', err.message)
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  COMPONENTE
+// ════════════════════════════════════════════════════════════════
 
 export default function ChatScreen({ onBack }) {
   const [messages,       setMessages]       = useState([])
   const [input,          setInput]          = useState('')
   const [loading,        setLoading]        = useState(false)
   const [historyLoaded,  setHistoryLoaded]  = useState(false)
-  const [greeting,       setGreeting]       = useState(true)  // sta eseguendo il saluto iniziale
+  const [greeting,       setGreeting]       = useState(true)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
 
-  const bottomRef    = useRef(null)
-  const inputRef     = useRef(null)
-  const abortRef     = useRef(null)   // AbortController corrente
+  const bottomRef = useRef(null)
+  const inputRef  = useRef(null)
+  const abortRef  = useRef(null)
 
-  // ── Mount: carica cronologia + genera saluto automatico ─────
+  // ── Mount: carica cronologia + memorie + genera saluto ───────
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
     abortRef.current = controller
 
     async function init() {
-      // 1. Carica cronologia esistente
-      const history = await loadHistoryFromFirestore()
-
+      // 1. Carica cronologia e memorie in parallelo
+      const [history, memorie] = await Promise.all([
+        loadHistoryFromFirestore(),
+        loadMemorie(),
+      ])
       if (cancelled) return
 
-      // 2. Mostra "..." mentre prepariamo il saluto
+      // 2. Mostra bolla "..." mentre il saluto viene generato
       setMessages([
         ...history,
         { role: 'assistant', content: '…', timestamp: Date.now(), isTyping: true },
@@ -328,26 +386,24 @@ export default function ChatScreen({ onBack }) {
       setLoading(true)
 
       try {
-        // 3. Costruisci contesto fresco da Firestore
-        const systemPrompt = await buildSystemPrompt()
+        // 3. Costruisce contesto fresco (con memorie)
+        const systemPrompt = await buildSystemPrompt(memorie)
         const greetSystem  = `${systemPrompt}\n\n${GREETING_INSTRUCTION}`
 
-        // 4. Chiama l'AI con solo il messaggio di apertura (nessun history utente)
+        // 4. Chiama l'AI per il saluto
         const greetMsg = await callProxy(
           [{ role: 'user', content: 'apertura chat' }],
           greetSystem,
           controller.signal,
+          80,   // saluto: poche parole bastano
         )
-
         if (cancelled) return
 
-        // 5. Sostituisci "..." con il saluto reale, preposto alla cronologia
         const greetBubble = { role: 'assistant', content: greetMsg, timestamp: Date.now() }
         setMessages([greetBubble, ...history])
       } catch (err) {
         if (cancelled) return
         if (err.name !== 'AbortError') {
-          // In caso di errore mostra comunque il messaggio di benvenuto statico
           setMessages([{ role: 'assistant', content: WELCOME_MSG, timestamp: Date.now() }, ...history])
         }
       } finally {
@@ -360,33 +416,28 @@ export default function ChatScreen({ onBack }) {
     }
 
     init()
-    return () => {
-      cancelled = true
-      controller.abort()
-    }
+    return () => { cancelled = true; controller.abort() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Salva su Firestore ad ogni aggiornamento (dopo il caricamento iniziale)
-  // Non salviamo il saluto generativo — solo la cronologia "reale"
+  // Salva su Firestore (escludi saluto generativo + bolle isTyping)
   useEffect(() => {
     if (!historyLoaded || greeting) return
-    // Salva solo i messaggi a partire dal secondo (esclude il saluto generativo in cima)
     const toSave = messages.slice(1).filter(m => !m.isTyping)
     saveHistoryToFirestore(toSave)
   }, [messages, historyLoaded, greeting])
 
-  // Scroll automatico all'ultimo messaggio
+  // Scroll automatico
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Rilevamento tastiera virtuale mobile via visualViewport
+  // Tastiera virtuale mobile
   useEffect(() => {
     const handleResize = () => {
       if (window.visualViewport) {
-        const bottomOffset =
+        const offset =
           window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
-        setKeyboardOffset(bottomOffset > 0 ? bottomOffset : 0)
+        setKeyboardOffset(offset > 0 ? offset : 0)
       }
     }
     window.visualViewport?.addEventListener('resize', handleResize)
@@ -397,16 +448,57 @@ export default function ChatScreen({ onBack }) {
     }
   }, [])
 
-  // ── Stop risposta ────────────────────────────────────────────
-  const stop = () => {
-    if (abortRef.current) abortRef.current.abort()
-  }
+  // ── Stop ─────────────────────────────────────────────────────
+  const stop = () => { if (abortRef.current) abortRef.current.abort() }
 
   // ── Invio messaggio ─────────────────────────────────────────
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
 
+    // ── Intercettazione: salvataggio forzato memoria ──────────
+    if (text.toLowerCase().startsWith(SAVE_PREFIX)) {
+      const info = text.slice(SAVE_PREFIX.length).trim()
+      if (!info) return
+
+      const userMsg = { role: 'user', content: text, timestamp: Date.now() }
+      setMessages(prev => [...prev, userMsg])
+      setInput('')
+      setLoading(true)
+
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      try {
+        const rephrasedText = await callProxy(
+          [{ role: 'user', content: `Riformula questa informazione in modo chiaro e conciso per salvarla come memoria: ${info}` }],
+          'Riformula il testo ricevuto in modo chiaro e conciso. Rispondi SOLO con il testo riformulato, senza aggiungere altro.',
+          controller.signal,
+          150,
+        )
+        await saveMemoria(rephrasedText)
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '✓ Informazione salvata nelle memorie.',
+          timestamp: Date.now(),
+        }])
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `Errore durante il salvataggio: ${err.message}`,
+            timestamp: Date.now(),
+          }])
+        }
+      } finally {
+        abortRef.current = null
+        setLoading(false)
+        inputRef.current?.focus()
+      }
+      return
+    }
+
+    // ── Invio normale ─────────────────────────────────────────
     const userMsg = { role: 'user', content: text, timestamp: Date.now() }
     setMessages(prev => [...prev, userMsg])
     setInput('')
@@ -415,18 +507,25 @@ export default function ChatScreen({ onBack }) {
     const controller = new AbortController()
     abortRef.current = controller
 
+    let aiReply = null
     try {
-      // Escludi: il saluto generativo in cima (indice 0) e le bolle "isTyping"
-      const apiHistory = [
-        ...messages.filter((m, i) => i > 0 && !m.isTyping),
-        userMsg,
-      ]
-      const systemPrompt = await buildSystemPrompt()
-      const reply = await callProxy(apiHistory, systemPrompt, controller.signal)
-      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }])
+      // Cronologia reale: esclude saluto (indice 0) e bolle isTyping
+      // Limita agli ultimi 10 messaggi
+      const realHistory = messages
+        .filter((m, i) => i > 0 && !m.isTyping)
+        .slice(-10)
+
+      const apiHistory = [...realHistory, userMsg]
+
+      // Carica memorie fresche, poi costruisce contesto con esse
+      const memorie = await loadMemorie()
+      const systemPrompt = await buildSystemPrompt(memorie)
+
+      aiReply = await callProxy(apiHistory, systemPrompt, controller.signal, 350)
+      setMessages(prev => [...prev, { role: 'assistant', content: aiReply, timestamp: Date.now() }])
     } catch (err) {
       if (err.name === 'AbortError') {
-        // Fetch annullata — non aggiungere messaggio di errore
+        // Stop premuto — nessun messaggio
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -439,20 +538,23 @@ export default function ChatScreen({ onBack }) {
       setLoading(false)
       inputRef.current?.focus()
     }
+
+    // ── Estrazione memoria in background (silenziosa) ─────────
+    if (aiReply) {
+      extractAndSaveMemory(text, aiReply)
+    }
   }
 
-  // ── Auto-resize textarea ────────────────────────────────────
-  // line-height 22px + padding verticale 20px (10px top + 10px bottom)
-  const SINGLE_ROW_H = 22 + 20   // altezza di 1 riga
-  const MAX_H        = 22 * 5 + 20  // massimo 5 righe
+  // ── Auto-resize textarea ─────────────────────────────────────
+  const SINGLE_ROW_H = 22 + 20
+  const MAX_H        = 22 * 5 + 20
 
   const autoResize = (el) => {
     if (!el) return
-    el.style.height = 'auto'                          // reset → scrollHeight si ricalcola
+    el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, MAX_H) + 'px'
   }
 
-  // Resetta l'altezza a 1 riga quando il testo viene svuotato
   useEffect(() => {
     if (!input && inputRef.current) {
       inputRef.current.style.height = SINGLE_ROW_H + 'px'
@@ -465,20 +567,14 @@ export default function ChatScreen({ onBack }) {
   }
 
   // Desktop: Enter invia, Shift+Enter e Ctrl+Enter vanno a capo
-  // Mobile:  Enter va a capo, invio solo col pulsante ➤
   const isDesktop = window.matchMedia('(hover: hover)').matches
-
   const handleKeyDown = (e) => {
     if (e.key !== 'Enter') return
     if (isDesktop) {
-      if (e.shiftKey || e.ctrlKey) {
-        // lascia inserire il newline — comportamento nativo
-        return
-      }
+      if (e.shiftKey || e.ctrlKey) return
       e.preventDefault()
       send()
     }
-    // su mobile non intercettiamo nulla
   }
 
   // ════════════════════════════════════════════════════════════
@@ -488,7 +584,7 @@ export default function ChatScreen({ onBack }) {
   return (
     <div className={styles.screen}>
 
-      {/* ══ HEADER fisso ════════════════════════════════════════ */}
+      {/* ══ HEADER ══════════════════════════════════════════════ */}
       <header className={styles.header}>
         <button className={styles.backBtn} onClick={onBack} aria-label="Torna">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -506,7 +602,6 @@ export default function ChatScreen({ onBack }) {
       >
         {messages.map((m, i) => (
           m.isTyping ? (
-            /* Bolla animata "..." — usata durante il saluto iniziale */
             <div key={i} className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.bubbleTyping}`}>
               <span className={styles.dot} />
               <span className={styles.dot} />
@@ -522,7 +617,6 @@ export default function ChatScreen({ onBack }) {
           )
         ))}
 
-        {/* Bolla animata durante l'invio di messaggi normali */}
         {loading && !greeting && (
           <div className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.bubbleTyping}`}>
             <span className={styles.dot} />
@@ -551,14 +645,12 @@ export default function ChatScreen({ onBack }) {
         />
 
         {loading ? (
-          /* Pulsante Stop */
           <button className={styles.stopBtn} onClick={stop} aria-label="Interrompi">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="#fff">
               <rect x="2" y="2" width="10" height="10" rx="2" />
             </svg>
           </button>
         ) : (
-          /* Pulsante Invia */
           <button
             className={styles.sendBtn}
             onClick={send}
