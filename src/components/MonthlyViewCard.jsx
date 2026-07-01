@@ -40,13 +40,17 @@ export default function MonthlyViewCard({ onClick }) {
 
       // Salta giorni futuri
       const pastKeys = keys.filter(k => !isFutureKey(k))
-      const snaps = await Promise.all(pastKeys.map(k => getDoc(doc(db, 'giorni', k))))
 
-      const result = {}
-      pastKeys.forEach((k, i) => {
-        result[k] = snaps[i].exists() ? calcDayScore(snaps[i].data()) : null
-      })
-      setScores(result)
+      try {
+        const snaps = await Promise.all(pastKeys.map(k => getDoc(doc(db, 'giorni', k))))
+        const result = {}
+        pastKeys.forEach((k, i) => {
+          result[k] = snaps[i].exists() ? calcDayScore(snaps[i].data()) : null
+        })
+        setScores(result)
+      } catch (err) {
+        console.error('[MonthlyView] ERRORE Firestore:', err)
+      }
     }
 
     loadScores()

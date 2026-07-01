@@ -294,7 +294,9 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
               const todayD  = isToday(year, month, day)
               const mestr   = isMestruale(day)
               const dateKey = toDateKey(new Date(year, month, day))
-              const hasData = !!dayDocs[dateKey]
+              const dayData = dayDocs[dateKey] ?? null
+              const hasData = !!dayData
+              const score   = hasData && past ? calcDayScore(dayData) : null
 
               return (
                 <div
@@ -310,7 +312,10 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
                   onClick={() => handleDayClick(day)}
                   title={past ? 'Apri dettaglio' : ''}
                 >
-                  {day}
+                  <span className={styles.calDayNum}>{day}</span>
+                  {score !== null && (
+                    <span className={styles.calDayScore}>{score}</span>
+                  )}
                 </div>
               )
             })}
