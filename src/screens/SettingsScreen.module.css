@@ -153,6 +153,21 @@
 }
 .habitNameInput:focus { border-color: var(--header); }
 
+.habitOrderBtns {
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+}
+
+.habitOrderBtn {
+  width: 22px; height: 20px; border-radius: 5px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.7);
+  color: var(--text); font-size: 0.65rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; line-height: 1;
+}
+.habitOrderBtn:hover:not(:disabled) { background: var(--sage-light); }
+.habitOrderBtn:disabled { opacity: 0.3; cursor: default; }
+
 .habitDeleteBtn {
   width: 26px; height: 26px; border-radius: 7px;
   border: none; background: #fce8e8; color: #c0392b;

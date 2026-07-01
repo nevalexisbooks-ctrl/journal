@@ -206,13 +206,6 @@ export default function RecapHabitsScreen({ onBack }) {
             </div>
           </div>
 
-          <div className={styles.legendRow}>
-            <span className={styles.legendName}>Fuori periodo / futuro / no dati</span>
-            <div className={styles.legendBinary}>
-              <span className={styles.legendSwatch} style={{ background: 'transparent', border: '1px dashed #bbb' }} />
-              <span className={styles.legendMin}>trasparente</span>
-            </div>
-          </div>
         </section>
 
       </main>

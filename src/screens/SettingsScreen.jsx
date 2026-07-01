@@ -185,6 +185,15 @@ export default function SettingsScreen({ onBack }) {
   const deleteHabit = (id) =>
     setHabits(prev => prev.filter(h => h.id !== id))
 
+  const moveHabit = (id, dir) => setHabits(prev => {
+    const idx = prev.findIndex(h => h.id === id)
+    const next = idx + dir
+    if (next < 0 || next >= prev.length) return prev
+    const arr = [...prev]
+    ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+    return arr
+  })
+
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — KEY HABITS
   // ════════════════════════════════════════════════════════════════
@@ -198,6 +207,15 @@ export default function SettingsScreen({ onBack }) {
 
   const deleteKeyHabit = (id) =>
     setKeyHabits(prev => prev.filter(h => h.id !== id))
+
+  const moveKeyHabit = (id, dir) => setKeyHabits(prev => {
+    const idx = prev.findIndex(h => h.id === id)
+    const next = idx + dir
+    if (next < 0 || next >= prev.length) return prev
+    const arr = [...prev]
+    ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+    return arr
+  })
 
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — MANUTENZIONE
@@ -517,9 +535,13 @@ export default function SettingsScreen({ onBack }) {
           </p>
 
           <div className={styles.habitsList}>
-            {keyHabits.map(h => (
+            {keyHabits.map((h, idx) => (
               <div key={h.id} className={styles.habitCard}>
                 <div className={styles.habitNameRow}>
+                  <div className={styles.habitOrderBtns}>
+                    <button className={styles.habitOrderBtn} onClick={() => moveKeyHabit(h.id, -1)} disabled={idx === 0} aria-label="Sposta su">↑</button>
+                    <button className={styles.habitOrderBtn} onClick={() => moveKeyHabit(h.id, 1)} disabled={idx === keyHabits.length - 1} aria-label="Sposta giù">↓</button>
+                  </div>
                   <input
                     className={styles.habitNameInput}
                     type="text"
@@ -570,10 +592,13 @@ export default function SettingsScreen({ onBack }) {
           </p>
 
           <div className={styles.habitsList}>
-            {habits.map(h => (
+            {habits.map((h, idx) => (
               <div key={h.id} className={styles.habitCard}>
-                {/* Riga nome + elimina */}
                 <div className={styles.habitNameRow}>
+                  <div className={styles.habitOrderBtns}>
+                    <button className={styles.habitOrderBtn} onClick={() => moveHabit(h.id, -1)} disabled={idx === 0} aria-label="Sposta su">↑</button>
+                    <button className={styles.habitOrderBtn} onClick={() => moveHabit(h.id, 1)} disabled={idx === habits.length - 1} aria-label="Sposta giù">↓</button>
+                  </div>
                   <input
                     className={styles.habitNameInput}
                     type="text"
@@ -588,7 +613,6 @@ export default function SettingsScreen({ onBack }) {
                   >✕</button>
                 </div>
 
-                {/* Date range */}
                 <div className={styles.habitDates}>
                   <label className={styles.habitDateLabel}>
                     A partire da
