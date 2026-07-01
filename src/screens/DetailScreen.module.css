@@ -608,7 +608,9 @@
   box-shadow: var(--shadow-sm);
   padding: 18px 16px;
 }
-.cardKeyHabits .blockTitle,
+.cardKeyHabits .blockTitle {
+  color: #3A3A3A;
+}
 .cardKeyHabits .habitItem {
   color: #fff;
 }
