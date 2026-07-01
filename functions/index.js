@@ -47,8 +47,12 @@ exports.claudeProxy = onRequest(
 
       // ── Costruisce corpo richiesta Gemini ──────────────────────
       const geminiBody = {
-        contents:         toGeminiContents(messages),
-        generationConfig: { maxOutputTokens: max_tokens },
+        contents: toGeminiContents(messages),
+        generationConfig: {
+          maxOutputTokens: max_tokens,
+          // Disabilita il thinking dei modelli 2.5: risparmia token e previene troncature
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       };
       if (system) {
         geminiBody.system_instruction = { parts: [{ text: system }] };
@@ -73,7 +77,14 @@ exports.claudeProxy = onRequest(
       }
 
       // ── Traduce risposta → formato Anthropic atteso dal frontend ─
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const candidate   = data.candidates?.[0];
+      const finishReason = candidate?.finishReason ?? "UNKNOWN";
+      // Concatena tutte le parti visibili (esclude eventuali blocchi thought)
+      const parts = candidate?.content?.parts ?? [];
+      const text  = parts.filter(p => !p.thought).map(p => p.text ?? "").join("");
+      if (finishReason !== "STOP") {
+        console.warn(`Gemini finishReason: ${finishReason} — testo parziale: ${text.length} chars`);
+      }
       res.json({ content: [{ text }] });
 
     } catch (err) {
