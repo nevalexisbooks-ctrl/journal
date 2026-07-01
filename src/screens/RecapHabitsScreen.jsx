@@ -133,7 +133,7 @@ export default function RecapHabitsScreen({ onBack }) {
 
                 <thead>
                   <tr>
-                    <th className={styles.thDay}>Giorno</th>
+                    <th className={styles.thDay}></th>
                     {allHabits.map(h => (
                       <th key={`${h.type}-${h.id}`} className={styles.thHabit}>
                         {h.text || '—'}

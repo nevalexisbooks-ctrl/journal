@@ -111,20 +111,27 @@
 /* Intestazione */
 .thDay,
 .thHabit {
-  padding: 6px 1px;
+  padding: 4px 1px;
   font-family: 'Open Sans', sans-serif;
-  font-size: 0.56rem;
+  font-size: 0.6rem;
   font-weight: 800;
   color: var(--text);
   text-align: center;
   background: var(--sage-light);
   border-bottom: 2px solid rgba(0,0,0,0.06);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   position: sticky;
   top: 0;
   z-index: 2;
+}
+
+.thHabit {
+  /* testo verticale, si legge dal basso verso l'alto */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  vertical-align: bottom;
+  padding: 8px 0 4px;
+  max-height: 90px;
 }
 
 .thDay {
@@ -165,8 +172,7 @@
 /* ── CELLA COLORATA ──────────────────────────────────────────── */
 .cell {
   width: 100%;
-  max-width: 36px;
-  height: 22px;
+  aspect-ratio: 1;
   border-radius: 4px;
   margin: 0 auto;
   position: relative;
