@@ -129,9 +129,11 @@
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   white-space: nowrap;
-  vertical-align: bottom;
-  padding: 8px 0 4px;
-  max-height: 90px;
+  vertical-align: middle;
+  text-align: center;
+  padding: 8px 0;
+  max-height: 80px;
+  width: 28px;
 }
 
 .thDay {
@@ -160,8 +162,9 @@
 }
 
 .tdCell {
-  padding: 2px 2px;
+  padding: 1px;
   text-align: center;
+  width: 28px;
 }
 
 /* Riga alternata leggermente più scura */
