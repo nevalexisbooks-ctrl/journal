@@ -76,26 +76,31 @@ exports.claudeProxy = onRequest(
         return;
       }
 
-      // ── Log raw Gemini response (diagnostica troncamento) ────────
-      console.log("[claudeProxy] RAW Gemini response:", JSON.stringify(data));
-
-      // ── Traduce risposta → formato Anthropic atteso dal frontend ─
+      // ── Estrai risposta ───────────────────────────────────────────
       const candidate    = data.candidates?.[0];
       const finishReason = candidate?.finishReason ?? "UNKNOWN";
-      // Concatena tutte le parti visibili (esclude eventuali blocchi thought)
       const parts = candidate?.content?.parts ?? [];
       const text  = parts.filter(p => !p.thought).map(p => p.text ?? "").join("");
-
-      // Log diagnostico: token thinking vs output + finishReason + lunghezza testo finale
       const usage = data.usageMetadata ?? {};
-      console.log(
-        `[claudeProxy] model=${model} finishReason=${finishReason}` +
-        ` | promptTokens=${usage.promptTokenCount ?? "?"}` +
-        ` | thinkingTokens=${usage.thoughtsTokenCount ?? 0}` +
-        ` | outputTokens=${usage.candidatesTokenCount ?? "?"}` +
-        ` | totalTokens=${usage.totalTokenCount ?? "?"}` +
-        ` | extractedChars=${text.length}`
-      );
+
+      // ── Scrivi debug su Firestore (sovrascrive ogni volta) ────────
+      try {
+        const db = admin.firestore();
+        await db.collection("debug").doc("lastGeminiCall").set({
+          timestamp:            new Date().toISOString(),
+          model,
+          finishReason,
+          thinkingTokens:       usage.thoughtsTokenCount   ?? null,
+          outputTokens:         usage.candidatesTokenCount ?? null,
+          promptTokens:         usage.promptTokenCount     ?? null,
+          totalTokens:          usage.totalTokenCount      ?? null,
+          extractedTextLength:  text.length,
+          extractedTextLast100: text.slice(-100),
+          rawCandidate:         candidate ?? null,
+        });
+      } catch (dbErr) {
+        console.warn("[claudeProxy] Firestore debug write failed:", dbErr.message);
+      }
 
       res.json({ content: [{ text }] });
 
