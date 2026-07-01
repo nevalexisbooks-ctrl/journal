@@ -58,16 +58,23 @@ export default function SettingsScreen({ onBack }) {
   const [settingsSaved,  setSettingsSaved]  = useState(false)
 
   // ── Memorie assistente ────────────────────────────────────────────────────
-  const [memorie,      setMemorie]      = useState([])   // [{id, testo, data}]
-  const [memoriaEdit,  setMemoriaEdit]  = useState(null) // id in modifica
-  const [memoriaText,  setMemoriaText]  = useState('')   // testo nell'input
+  const [memorie,        setMemorie]        = useState([])   // [{id, testo, data}]
+  const [memoriaEdit,    setMemoriaEdit]    = useState(null) // id in modifica
+  const [memoriaText,    setMemoriaText]    = useState('')   // testo nell'input
+  const [newMemoriaText, setNewMemoriaText] = useState('')   // nuova voce
+  const [memoriaOpen,    setMemoriaOpen]    = useState(false)
+
+  // ── Key Habits ───────────────────────────────────────────────────────────
+  const [keyHabits, setKeyHabits] = useState([])
 
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading,     setLoading]     = useState(true)
 
   // ── Refs debounce ─────────────────────────────────────────────────────────
-  const habitsTimerRef   = useRef(null)
-  const habitsReadyRef   = useRef(false)
+  const habitsTimerRef      = useRef(null)
+  const habitsReadyRef      = useRef(false)
+  const keyHabitsTimerRef   = useRef(null)
+  const keyHabitsReadyRef   = useRef(false)
 
   // ════════════════════════════════════════════════════════════════
   //  CARICAMENTO INIZIALE
@@ -76,15 +83,17 @@ export default function SettingsScreen({ onBack }) {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const [cicloSnap, habitsSnap, profiloSnap, promptSnap, memorieSnap] = await Promise.all([
+        const [cicloSnap, habitsSnap, keyHabitsSnap, profiloSnap, promptSnap, memorieSnap] = await Promise.all([
           getDoc(doc(db, 'settings', 'ciclo')),
           getDoc(doc(db, 'settings', 'habits')),
+          getDoc(doc(db, 'settings', 'keyHabits')),
           getDoc(doc(db, 'settings', 'profilo')),
           getDoc(doc(db, 'settings', 'aiPrompt')),
           getDocs(collection(db, 'memoria')),
         ])
-        if (cicloSnap.exists())   setCiclo(cicloSnap.data())
-        if (habitsSnap.exists())  setHabits(habitsSnap.data().habits ?? [])
+        if (cicloSnap.exists())    setCiclo(cicloSnap.data())
+        if (habitsSnap.exists())   setHabits(habitsSnap.data().habits ?? [])
+        if (keyHabitsSnap.exists()) setKeyHabits(keyHabitsSnap.data().keyHabits ?? [])
         // Profilo: Firestore → localStorage → stringa vuota
         if (profiloSnap.exists()) {
           setUserProfile(profiloSnap.data().testo ?? '')
@@ -107,14 +116,17 @@ export default function SettingsScreen({ onBack }) {
         setAiPrompt(DEFAULT_PROMPT)
       } finally {
         setLoading(false)
-        setTimeout(() => { habitsReadyRef.current = true }, 50)
+        setTimeout(() => {
+          habitsReadyRef.current    = true
+          keyHabitsReadyRef.current = true
+        }, 50)
       }
     }
     loadSettings()
   }, []) // eslint-disable-line
 
   // ════════════════════════════════════════════════════════════════
-  //  AUTO-SAVE HABITS (debounced 700ms)
+  //  AUTO-SAVE HABITS / KEY HABITS (debounced 700ms)
   // ════════════════════════════════════════════════════════════════
 
   useEffect(() => {
@@ -127,6 +139,17 @@ export default function SettingsScreen({ onBack }) {
     }, 700)
     return () => clearTimeout(habitsTimerRef.current)
   }, [habits])
+
+  useEffect(() => {
+    if (!keyHabitsReadyRef.current) return
+    clearTimeout(keyHabitsTimerRef.current)
+    keyHabitsTimerRef.current = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, 'settings', 'keyHabits'), { keyHabits }, { merge: true })
+      } catch (err) { console.error('Errore salvataggio keyHabits:', err) }
+    }, 700)
+    return () => clearTimeout(keyHabitsTimerRef.current)
+  }, [keyHabits])
 
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — CICLO
@@ -161,6 +184,20 @@ export default function SettingsScreen({ onBack }) {
 
   const deleteHabit = (id) =>
     setHabits(prev => prev.filter(h => h.id !== id))
+
+  // ════════════════════════════════════════════════════════════════
+  //  HANDLERS — KEY HABITS
+  // ════════════════════════════════════════════════════════════════
+
+  const addKeyHabit = () => {
+    setKeyHabits(prev => [...prev, { id: Date.now(), text: '', startDate: '', endDate: '' }])
+  }
+
+  const setKeyHabitField = (id, field) => (e) =>
+    setKeyHabits(prev => prev.map(h => h.id === id ? { ...h, [field]: e.target.value } : h))
+
+  const deleteKeyHabit = (id) =>
+    setKeyHabits(prev => prev.filter(h => h.id !== id))
 
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — MANUTENZIONE
@@ -236,6 +273,18 @@ export default function SettingsScreen({ onBack }) {
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — MEMORIE
   // ════════════════════════════════════════════════════════════════
+
+  const addMemoria = async () => {
+    const testo = newMemoriaText.trim()
+    if (!testo) return
+    try {
+      const ref = await addDoc(collection(db, 'memoria'), { testo, data: Date.now() })
+      setMemorie(prev => [{ id: ref.id, testo, data: Date.now() }, ...prev])
+      setNewMemoriaText('')
+    } catch (err) {
+      console.error('Errore aggiunta memoria:', err)
+    }
+  }
 
   const startEditMemoria = (m) => {
     setMemoriaEdit(m.id)
@@ -342,62 +391,72 @@ export default function SettingsScreen({ onBack }) {
           />
         </section>
 
-        {/* ── MEMORIA ASSISTENTE ──────────────────────────────── */}
+        {/* ── MEMORIA ASSISTENTE (collassabile) ───────────────── */}
         <section className={styles.cardWhite}>
-          <h2 className={styles.blockTitle}>Memoria Assistente</h2>
-          <p className={styles.blockSub}>
-            L'assistente salva automaticamente le informazioni importanti emerse nelle conversazioni.
-            Puoi modificarle o eliminarle.
-          </p>
+          <button
+            className={styles.collapseHeader}
+            onClick={() => setMemoriaOpen(o => !o)}
+            aria-expanded={memoriaOpen}
+          >
+            <h2 className={styles.blockTitle} style={{ margin: 0 }}>Memoria Assistente</h2>
+            <span className={`${styles.collapseChevron} ${memoriaOpen ? styles.collapseOpen : ''}`}>▾</span>
+          </button>
 
-          {memorie.length === 0 ? (
-            <p className={styles.memorieEmpty}>Nessuna memoria salvata ancora.</p>
-          ) : (
-            <ul className={styles.memorieList}>
-              {memorie.map(m => (
-                <li key={m.id} className={styles.memoriaItem}>
-                  <span className={styles.memoriaData}>{formatDataMemoria(m.data)}</span>
+          {memoriaOpen && (
+            <div className={styles.collapseBody}>
+              <p className={styles.blockSub}>
+                L'assistente salva automaticamente le informazioni importanti emerse nelle conversazioni.
+                Puoi modificarle, eliminarle o aggiungerne di nuove.
+              </p>
 
-                  {memoriaEdit === m.id ? (
-                    <div className={styles.memoriaEditRow}>
-                      <input
-                        className={styles.memoriaInput}
-                        value={memoriaText}
-                        onChange={e => setMemoriaText(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') confirmEditMemoria(m.id) }}
-                        autoFocus
-                      />
-                      <button
-                        className={styles.memoriaConfirmBtn}
-                        onClick={() => confirmEditMemoria(m.id)}
-                        aria-label="Conferma modifica"
-                      >✓</button>
-                      <button
-                        className={styles.memoriaAnnullaBtn}
-                        onClick={() => { setMemoriaEdit(null); setMemoriaText('') }}
-                        aria-label="Annulla"
-                      >✕</button>
-                    </div>
-                  ) : (
-                    <div className={styles.memoriaTextRow}>
-                      <span className={styles.memoriaTesto}>{m.testo}</span>
-                      <button
-                        className={styles.memoriaActionBtn}
-                        onClick={() => startEditMemoria(m)}
-                        aria-label="Modifica"
-                        title="Modifica"
-                      >✏️</button>
-                      <button
-                        className={`${styles.memoriaActionBtn} ${styles.memoriaDeleteBtn}`}
-                        onClick={() => deleteMemoria(m.id)}
-                        aria-label="Elimina"
-                        title="Elimina"
-                      >✕</button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+              {/* Aggiungi voce manuale */}
+              <div className={styles.newMemoriaRow}>
+                <input
+                  className={styles.memoriaInput}
+                  value={newMemoriaText}
+                  onChange={e => setNewMemoriaText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addMemoria()}
+                  placeholder="Aggiungi voce di memoria…"
+                />
+                <button
+                  className={styles.memoriaConfirmBtn}
+                  onClick={addMemoria}
+                  aria-label="Aggiungi"
+                >+</button>
+              </div>
+
+              {memorie.length === 0 ? (
+                <p className={styles.memorieEmpty}>Nessuna memoria salvata ancora.</p>
+              ) : (
+                <ul className={styles.memorieList}>
+                  {memorie.map(m => (
+                    <li key={m.id} className={styles.memoriaItem}>
+                      <span className={styles.memoriaData}>{formatDataMemoria(m.data)}</span>
+
+                      {memoriaEdit === m.id ? (
+                        <div className={styles.memoriaEditRow}>
+                          <input
+                            className={styles.memoriaInput}
+                            value={memoriaText}
+                            onChange={e => setMemoriaText(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') confirmEditMemoria(m.id) }}
+                            autoFocus
+                          />
+                          <button className={styles.memoriaConfirmBtn} onClick={() => confirmEditMemoria(m.id)}>✓</button>
+                          <button className={styles.memoriaAnnullaBtn} onClick={() => { setMemoriaEdit(null); setMemoriaText('') }}>✕</button>
+                        </div>
+                      ) : (
+                        <div className={styles.memoriaTextRow}>
+                          <span className={styles.memoriaTesto}>{m.testo}</span>
+                          <button className={styles.memoriaActionBtn} onClick={() => startEditMemoria(m)} title="Modifica">✏️</button>
+                          <button className={`${styles.memoriaActionBtn} ${styles.memoriaDeleteBtn}`} onClick={() => deleteMemoria(m.id)} title="Elimina">✕</button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </section>
 
@@ -447,6 +506,59 @@ export default function SettingsScreen({ onBack }) {
             disabled={cicloSaving}
           >
             {cicloSaving ? 'Salvataggio…' : cicloSaved ? '✓ Salvato' : 'Salva'}
+          </button>
+        </section>
+
+        {/* ── KEY HABITS ──────────────────────────────────────── */}
+        <section className={styles.cardWhite}>
+          <h2 className={styles.blockTitle}>Key Habits</h2>
+          <p className={styles.blockSub}>
+            Habit principali, mostrate sopra le Small Habits in "Nel dettaglio".
+          </p>
+
+          <div className={styles.habitsList}>
+            {keyHabits.map(h => (
+              <div key={h.id} className={styles.habitCard}>
+                <div className={styles.habitNameRow}>
+                  <input
+                    className={styles.habitNameInput}
+                    type="text"
+                    value={h.text}
+                    onChange={setKeyHabitField(h.id, 'text')}
+                    placeholder="Nome habit…"
+                  />
+                  <button
+                    className={styles.habitDeleteBtn}
+                    onClick={() => deleteKeyHabit(h.id)}
+                    aria-label="Elimina key habit"
+                  >✕</button>
+                </div>
+                <div className={styles.habitDates}>
+                  <label className={styles.habitDateLabel}>
+                    A partire da
+                    <input
+                      className={styles.habitDateInput}
+                      type="date"
+                      value={h.startDate ?? ''}
+                      onChange={setKeyHabitField(h.id, 'startDate')}
+                    />
+                  </label>
+                  <label className={styles.habitDateLabel}>
+                    Disattiva dal
+                    <input
+                      className={styles.habitDateInput}
+                      type="date"
+                      value={h.endDate ?? ''}
+                      onChange={setKeyHabitField(h.id, 'endDate')}
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button className={styles.btnAdd} onClick={addKeyHabit}>
+            + Aggiungi key habit
           </button>
         </section>
 

@@ -175,7 +175,7 @@ const MOOD_EMOJI = ['🥰', '😌', '😑', '🫩', '🤒', '🥺', '🫨', '�
 //  COMPONENTE
 // ════════════════════════════════════════════════════════════════
 
-export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) {
+export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit, onOpenRecapHabits }) {
   // ── Data visualizzata (può partire da una data specifica) ────
   const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date())
   const future  = isFutureDay(currentDate)
@@ -192,7 +192,8 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
   const [sonno,      setSonno]      = useState(DEFAULT_SONNO)
   const [emojiSel,   setEmojiSel]   = useState([])
   const [umoreVoto,  setUmoreVoto]  = useState('')
-  const [habits,     setHabits]     = useState([])
+  const [habits,    setHabits]    = useState([])
+  const [keyHabits, setKeyHabits] = useState([])
   const [note,       setNote]       = useState('')
 
   // ── Stato ciclo (caricato da settings/ciclo) ─────────────────
@@ -227,19 +228,26 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
 
     async function loadDay() {
       try {
-        // Carica in parallelo: giornata + config habits + config ciclo
-        const [daySnap, habitsSnap, cicloSnap] = await Promise.all([
+        // Carica in parallelo: giornata + config habits + config keyHabits + config ciclo
+        const [daySnap, habitsSnap, keyHabitsSnap, cicloSnap] = await Promise.all([
           getDoc(doc(db, 'giorni',   key)),
           getDoc(doc(db, 'settings', 'habits')),
+          getDoc(doc(db, 'settings', 'keyHabits')),
           getDoc(doc(db, 'settings', 'ciclo')),
         ])
         if (cancelled) return
 
-        // ── Habit: sorgente di verità da settings ──────────────
+        // ── Small Habits: sorgente di verità da settings ───────
         const habitsCfg = habitsSnap.exists()
           ? (habitsSnap.data().habits ?? DEFAULT_HABITS_CFG)
           : DEFAULT_HABITS_CFG
         const filteredCfg = filterHabits(habitsCfg, currentDate)
+
+        // ── Key Habits: sorgente di verità da settings ──────────
+        const keyHabitsCfg    = keyHabitsSnap.exists()
+          ? (keyHabitsSnap.data().keyHabits ?? [])
+          : []
+        const filteredKeyCfg  = filterHabits(keyHabitsCfg, currentDate)
 
         // ── Ciclo: calcola fase per la data visualizzata ────────
         if (cicloSnap.exists()) {
@@ -264,6 +272,12 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
             acc[h.id] = h.done ?? false; return acc
           }, {})
           setHabits(filteredCfg.map(h => ({ ...h, done: doneMap[h.id] ?? false })))
+
+          // Merge config keyHabits + done state dal giorno
+          const doneKeyMap = (d.keyHabits ?? []).reduce((acc, h) => {
+            acc[h.id] = h.done ?? false; return acc
+          }, {})
+          setKeyHabits(filteredKeyCfg.map(h => ({ ...h, done: doneKeyMap[h.id] ?? false })))
         } else {
           setTodos([])
           setChallenge(DEFAULT_CHALLENGE)
@@ -272,6 +286,7 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
           setUmoreVoto('')
           setNote('')
           setHabits(filteredCfg.map(h => ({ ...h, done: false })))
+          setKeyHabits(filteredKeyCfg.map(h => ({ ...h, done: false })))
         }
       } catch (err) {
         console.error('Errore caricamento giornata:', err)
@@ -306,8 +321,9 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
         todos,
         challenge,
         sonno,
-        umore:  { faccine: emojiSel, voto: umoreVoto },
+        umore:     { faccine: emojiSel, voto: umoreVoto },
         habits,
+        keyHabits,
         note,
       }
       try {
@@ -319,7 +335,7 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
 
     return () => clearTimeout(saveTimerRef.current)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todos, challenge, sonno, emojiSel, umoreVoto, habits, note])
+  }, [todos, challenge, sonno, emojiSel, umoreVoto, habits, keyHabits, note])
 
   // ════════════════════════════════════════════════════════════
   //  HANDLERS
@@ -380,9 +396,13 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
   const toggleEmoji = (i) =>
     setEmojiSel(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])
 
-  // ── Habits ──
+  // ── Small Habits ──
   const toggleHabit = (id) =>
     setHabits(prev => prev.map(h => h.id === id ? { ...h, done: !h.done } : h))
+
+  // ── Key Habits ──
+  const toggleKeyHabit = (id) =>
+    setKeyHabits(prev => prev.map(h => h.id === id ? { ...h, done: !h.done } : h))
 
   const sleepTotal = calcSleepTotal(sonno.dalle, sonno.alle)
 
@@ -661,7 +681,7 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
         </div>
 
         {/* ── UMORE (riga intera) ──────────────────────────────── */}
-        <section className={`${styles.cardWhite} ${future ? styles.disabled : ''}`}>
+        <section className={`${styles.cardSand} ${future ? styles.disabled : ''}`}>
           <h2 className={styles.blockTitle}>Umore</h2>
 
           <div className={styles.emojiRow}>
@@ -694,8 +714,26 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
           </div>
         </section>
 
+        {/* ── KEY HABITS (riga intera, sopra Small Habits) ──────── */}
+        {keyHabits.length > 0 && (
+          <section className={`${styles.cardWhite} ${future ? styles.disabled : ''}`}>
+            <h2 className={styles.blockTitle}>Key Habits</h2>
+            <ul className={styles.habitList}>
+              {keyHabits.map(h => (
+                <li key={h.id} className={styles.habitItem}>
+                  <div
+                    className={`${styles.habitCheck} ${h.done ? styles.habitChecked : ''}`}
+                    onClick={() => !future && toggleKeyHabit(h.id)}
+                  />
+                  <span className={h.done ? styles.habitDone : ''}>{h.text}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {/* ── SMALL HABITS (riga intera) ───────────────────────── */}
-        <section className={`${styles.cardSand} ${future ? styles.disabled : ''}`}>
+        <section className={`${styles.cardSage} ${future ? styles.disabled : ''}`}>
           <h2 className={styles.blockTitle}>Small Habits</h2>
           <ul className={styles.habitList}>
             {habits.map(h => (
@@ -708,17 +746,20 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
               </li>
             ))}
           </ul>
-          <button
-            className={styles.recapHabitBtn}
-            onClick={onOpenRecapHabit}
-            type="button"
-          >
-            📊 Recap Habit
-          </button>
         </section>
 
+        {/* ── PULSANTI RECAP ───────────────────────────────────── */}
+        <div className={styles.recapBtnsRow}>
+          <button className={styles.recapBtn} onClick={onOpenRecapHabit} type="button">
+            📊 Recap Challenge
+          </button>
+          <button className={styles.recapBtn} onClick={onOpenRecapHabits} type="button">
+            ✅ Recap Habits
+          </button>
+        </div>
+
         {/* ── NOTE (sempre attivo) ────────────────────────────── */}
-        <section className={styles.cardSand}>
+        <section className={styles.cardWhite}>
           <h2 className={styles.blockTitle}>Note</h2>
           <textarea
             className={styles.noteArea}

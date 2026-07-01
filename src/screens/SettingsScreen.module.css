@@ -269,6 +269,37 @@
   margin: 0;
 }
 
+/* ── COLLAPSE ────────────────────────────────────────────────── */
+.collapseHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.collapseChevron {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.collapseOpen { transform: rotate(180deg); }
+
+.collapseBody { margin-top: 12px; }
+
+.newMemoriaRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
 /* ── MEMORIA ASSISTENTE ──────────────────────────────────────── */
 .memorieEmpty {
   font-size: 0.82rem;

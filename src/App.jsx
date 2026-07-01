@@ -8,15 +8,17 @@ import ChatScreen          from './screens/ChatScreen.jsx'
 import SettingsScreen      from './screens/SettingsScreen.jsx'
 import PinScreen           from './screens/PinScreen.jsx'
 import RecapHabitScreen    from './screens/RecapHabitScreen.jsx'
+import RecapHabitsScreen   from './screens/RecapHabitsScreen.jsx'
 
 export const SCREENS = {
-  HOME:        'home',
-  DETAIL:      'detail',
-  WEEKLY:      'weekly',
-  MONTHLY:     'monthly',
-  CHAT:        'chat',
-  SETTINGS:    'settings',
-  RECAP_HABIT: 'recap_habit',
+  HOME:         'home',
+  DETAIL:       'detail',
+  WEEKLY:       'weekly',
+  MONTHLY:      'monthly',
+  CHAT:         'chat',
+  SETTINGS:     'settings',
+  RECAP_HABIT:  'recap_habit',
+  RECAP_HABITS: 'recap_habits',
 }
 
 export default function App() {
@@ -79,11 +81,15 @@ export default function App() {
         <DetailScreen
           initialDate={detailDate}
           onBack={() => { setDetailDate(null); navigate(SCREENS.HOME) }}
-          onOpenRecapHabit={() => navigate(SCREENS.RECAP_HABIT)}
+          onOpenRecapHabit={()  => navigate(SCREENS.RECAP_HABIT)}
+          onOpenRecapHabits={() => navigate(SCREENS.RECAP_HABITS)}
         />
       )}
-      {screen === SCREENS.RECAP_HABIT && (
-        <RecapHabitScreen onBack={() => navigate(SCREENS.DETAIL)} />
+      {screen === SCREENS.RECAP_HABIT  && (
+        <RecapHabitScreen  onBack={() => navigate(SCREENS.DETAIL)} />
+      )}
+      {screen === SCREENS.RECAP_HABITS && (
+        <RecapHabitsScreen onBack={() => navigate(SCREENS.DETAIL)} />
       )}
       {screen === SCREENS.WEEKLY   && <WeeklyRecapScreen onBack={() => navigate(SCREENS.HOME)} />}
       {screen === SCREENS.MONTHLY  && (
