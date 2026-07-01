@@ -24,7 +24,7 @@ function toGeminiContents(messages) {
 }
 
 exports.claudeProxy = onRequest(
-  { secrets: [GEMINI_KEY] },
+  { secrets: [GEMINI_KEY], timeoutSeconds: 120 },
   async (req, res) => {
     res.set("Access-Control-Allow-Origin",  "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -76,6 +76,9 @@ exports.claudeProxy = onRequest(
         return;
       }
 
+      // ── Log raw Gemini response (diagnostica troncamento) ────────
+      console.log("[claudeProxy] RAW Gemini response:", JSON.stringify(data));
+
       // ── Traduce risposta → formato Anthropic atteso dal frontend ─
       const candidate    = data.candidates?.[0];
       const finishReason = candidate?.finishReason ?? "UNKNOWN";
@@ -83,7 +86,7 @@ exports.claudeProxy = onRequest(
       const parts = candidate?.content?.parts ?? [];
       const text  = parts.filter(p => !p.thought).map(p => p.text ?? "").join("");
 
-      // Log diagnostico: token thinking vs output + finishReason
+      // Log diagnostico: token thinking vs output + finishReason + lunghezza testo finale
       const usage = data.usageMetadata ?? {};
       console.log(
         `[claudeProxy] model=${model} finishReason=${finishReason}` +
@@ -91,7 +94,7 @@ exports.claudeProxy = onRequest(
         ` | thinkingTokens=${usage.thoughtsTokenCount ?? 0}` +
         ` | outputTokens=${usage.candidatesTokenCount ?? "?"}` +
         ` | totalTokens=${usage.totalTokenCount ?? "?"}` +
-        ` | outputChars=${text.length}`
+        ` | extractedChars=${text.length}`
       );
 
       res.json({ content: [{ text }] });
