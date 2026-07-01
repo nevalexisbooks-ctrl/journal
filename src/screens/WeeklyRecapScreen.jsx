@@ -9,7 +9,7 @@ import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
   toDateKey, toWeekKey, getMonday, getWeekDays,
-  formatWeekRange, todayWeekIndex, calcDayScore, isFutureKey,
+  formatWeekRange, todayWeekIndex, calcDayScore, isFutureKey, getPesiForDate,
 } from '../utils/calcWidgets.js'
 import styles from './WeeklyRecapScreen.module.css'
 
@@ -70,15 +70,18 @@ export default function WeeklyRecapScreen({ onBack }) {
 
     async function loadAll() {
       try {
-        // Voti giornalieri: 7 getDoc paralleli
+        // Voti giornalieri: 7 getDoc paralleli + scoreFormulas
         const dayKeys  = days.map(d => toDateKey(d))
-        const daySnaps = await Promise.all(
-          dayKeys.map(k => getDoc(doc(db, 'giorni', k)))
-        )
+        const [daySnaps, formulasSnap] = await Promise.all([
+          Promise.all(dayKeys.map(k => getDoc(doc(db, 'giorni', k)))),
+          getDoc(doc(db, 'settings', 'scoreFormulas')),
+        ])
         if (cancelled) return
-        setScores(daySnaps.map((s, i) =>
-          isFutureKey(dayKeys[i]) ? null : (s.exists() ? calcDayScore(s.data()) : null)
-        ))
+        const versions = formulasSnap.exists() ? (formulasSnap.data().versions ?? []) : []
+        setScores(daySnaps.map((s, i) => {
+          if (isFutureKey(dayKeys[i]) || !s.exists()) return null
+          return calcDayScore(s.data(), getPesiForDate(versions, dayKeys[i]))
+        }))
 
         // Dati settimanali
         const weekSnap = await getDoc(doc(db, 'settimane', wKey))

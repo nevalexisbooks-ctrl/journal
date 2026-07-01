@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, addDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
-  toDateKey, toWeekKey, calcDayScore, calcCyclePhase,
+  toDateKey, toWeekKey, calcDayScore, calcCyclePhase, getPesiForDate,
 } from '../utils/calcWidgets.js'
 import styles from './ChatScreen.module.css'
 
@@ -124,13 +124,15 @@ async function buildSystemPrompt(memorie = []) {
   const weekKey = toWeekKey(today)
 
   // Carica tutto in parallelo da Firestore
-  const [daySnaps, weekSnap, cicloSnap, profiloSnap, aiPromptSnap] = await Promise.all([
+  const [daySnaps, weekSnap, cicloSnap, profiloSnap, aiPromptSnap, formulasSnap] = await Promise.all([
     Promise.all(dayKeys.map(k => getDoc(doc(db, 'giorni', k)))),
     getDoc(doc(db, 'settimane', weekKey)),
     getDoc(doc(db, 'settings', 'ciclo')),
     getDoc(doc(db, 'settings', 'profilo')),
     getDoc(doc(db, 'settings', 'aiPrompt')),
+    getDoc(doc(db, 'settings', 'scoreFormulas')),
   ])
+  const scoreVersions = formulasSnap.exists() ? (formulasSnap.data().versions ?? []) : []
 
   // ── Helpers ───────────────────────────────────────────────────
   const ni = 'non inserito'
@@ -200,7 +202,7 @@ async function buildSystemPrompt(memorie = []) {
     const facceList = Array.isArray(um.faccine) && um.faccine.length > 0
       ? um.faccine.join(' ') : ni
 
-    const score   = calcDayScore(d)
+    const score   = calcDayScore(d, getPesiForDate(scoreVersions, dateKey))
     const votoStr = score !== null
       ? `${score}/10${isToday ? ' (provvisorio)' : ''}`
       : 'non ancora calcolabile /10'

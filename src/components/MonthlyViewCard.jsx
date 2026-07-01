@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase.js'
-import { toDateKey, calcDayScore, isFutureKey } from '../utils/calcWidgets.js'
+import { toDateKey, calcDayScore, isFutureKey, getPesiForDate } from '../utils/calcWidgets.js'
 import styles from './MonthlyViewCard.module.css'
 
 const GIORNI_HDR = ['L','M','M','G','V','S','D']
@@ -38,14 +38,19 @@ export default function MonthlyViewCard({ onClick }) {
         return toDateKey(d)
       })
 
-      // Salta giorni futuri
       const pastKeys = keys.filter(k => !isFutureKey(k))
 
       try {
-        const snaps = await Promise.all(pastKeys.map(k => getDoc(doc(db, 'giorni', k))))
+        const [snaps, formulasSnap] = await Promise.all([
+          Promise.all(pastKeys.map(k => getDoc(doc(db, 'giorni', k)))),
+          getDoc(doc(db, 'settings', 'scoreFormulas')),
+        ])
+        const versions = formulasSnap.exists() ? (formulasSnap.data().versions ?? []) : []
         const result = {}
         pastKeys.forEach((k, i) => {
-          result[k] = snaps[i].exists() ? calcDayScore(snaps[i].data()) : null
+          if (!snaps[i].exists()) { result[k] = null; return }
+          const pesi = getPesiForDate(versions, k)
+          result[k] = calcDayScore(snaps[i].data(), pesi)
         })
         setScores(result)
       } catch (err) {

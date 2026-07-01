@@ -38,53 +38,83 @@ export function calcWaterPct(litri) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  CALCOLO VOTO GIORNALIERO (max 100 pt → /10 → intero 1-10)
+//  PESI DEFAULT E FORMULA VOTO GIORNALIERO
 // ════════════════════════════════════════════════════════════════
 
+export const DEFAULT_PESI = {
+  social:       15,
+  workout:      15,
+  acqua:        15,
+  zeroZuccheri: 15,
+  umore:        15,
+  task:         11,
+  sonno:         7,
+  smallHabits:   2,
+  keyHabits:     5,
+}
+// somma DEFAULT_PESI = 100
+
 /**
- * Riceve il documento Firestore di un giorno e restituisce il voto (1-10).
- * Ritorna null se il documento non esiste o non ha dati sufficienti.
+ * Dato un array di versioni formula [{dataInizio, pesi}] e una chiave YYYY-MM-DD,
+ * restituisce i pesi della versione con dataInizio più recente ≤ dateKey.
+ * Falls back a DEFAULT_PESI se nessuna versione copre la data.
  */
-export function calcDayScore(dayData) {
+export function getPesiForDate(versions, dateKey) {
+  if (!versions || versions.length === 0) return DEFAULT_PESI
+  const sorted = [...versions].sort((a, b) => b.dataInizio.localeCompare(a.dataInizio))
+  const match  = sorted.find(v => v.dataInizio <= dateKey)
+  return match ? { ...DEFAULT_PESI, ...match.pesi } : DEFAULT_PESI
+}
+
+/**
+ * Riceve il documento Firestore di un giorno e i pesi della formula attiva,
+ * restituisce il voto (1-10). Null se il documento non ha dati sufficienti.
+ */
+export function calcDayScore(dayData, pesi = DEFAULT_PESI) {
   if (!dayData) return null
+  const p = { ...DEFAULT_PESI, ...pesi }
 
-  const ch     = dayData.challenge ?? {}
-  const umore  = dayData.umore     ?? {}
-  const sonno  = dayData.sonno     ?? {}
-  const todos  = dayData.todos     ?? []
-  const habits = dayData.habits    ?? []
+  const ch      = dayData.challenge  ?? {}
+  const umore   = dayData.umore      ?? {}
+  const sonno   = dayData.sonno      ?? {}
+  const todos   = dayData.todos      ?? []
+  const habits  = dayData.habits     ?? []
+  const keyH    = dayData.keyHabits  ?? []
 
-  // 1. Social (max 15 pt): pct × 0.15
-  const social   = calcSocialPct(ch.social)  * 0.15
+  // 1. Social: pct × p.social / 100  →  max = p.social pt
+  const social      = calcSocialPct(ch.social) * p.social / 100
 
-  // 2. Workout (max 15 pt): pct × 0.15
-  const workout  = calcWorkoutPct(ch.passi, ch.cyclette, ch.yoga) * 0.15
+  // 2. Workout: pct × p.workout / 100
+  const workout     = calcWorkoutPct(ch.passi, ch.cyclette, ch.yoga) * p.workout / 100
 
-  // 3. Acqua (max 15 pt): pct × 0.15
-  const water    = calcWaterPct(ch.acqua) * 0.15
+  // 3. Acqua: pct × p.acqua / 100
+  const water       = calcWaterPct(ch.acqua) * p.acqua / 100
 
-  // 4. Zero Zuccheri (max 15 pt)
-  const zuccheri = ch.zeroZuccheri ? 15 : 0
+  // 4. Zero Zuccheri: sì = p.zeroZuccheri, no = 0
+  const zuccheri    = ch.zeroZuccheri ? p.zeroZuccheri : 0
 
-  // 5. Umore (max 15 pt): voto × 1.5
-  const umoreScore = (Number(umore.voto) || 0) * 1.5
+  // 5. Umore: (voto/10) × p.umore
+  const umoreScore  = (Number(umore.voto) || 0) / 10 * p.umore
 
-  // 6. Task To Do (max 15 pt): (completate/totali) × 15
-  const totTodo = todos.length
+  // 6. Task: (completate/totali) × p.task
+  const totTodo  = todos.length
   const doneTodo = todos.filter(t => t.done).length
-  const todoScore = totTodo > 0 ? (doneTodo / totTodo) * 15 : 0
+  const todoScore   = totTodo > 0 ? (doneTodo / totTodo) * p.task : 0
 
-  // 7. Qualità Sonno (max 7 pt): qualità × 0.7
-  const sonnoScore = (Number(sonno.qualita) || 0) * 0.7
+  // 7. Sonno: (qualità/10) × p.sonno
+  const sonnoScore  = (Number(sonno.qualita) || 0) / 10 * p.sonno
 
-  // 8. Small Habits (max 3 pt): 0=0, 1=1.5, 2+=3
-  const doneHabits = habits.filter(h => h.done).length
-  const habitsScore = doneHabits === 0 ? 0 : doneHabits === 1 ? 1.5 : 3
+  // 8. Small Habits: 0→0 | 1→p.smallHabits/2 | 2+→p.smallHabits
+  const doneHabits  = habits.filter(h => h.done).length
+  const habitsScore = doneHabits === 0 ? 0 : doneHabits === 1 ? p.smallHabits / 2 : p.smallHabits
 
-  const total = social + workout + water + zuccheri + umoreScore + todoScore + sonnoScore + habitsScore
+  // 9. Key Habits: 0→0 | 1→p.keyHabits/2 | 2+→p.keyHabits
+  const doneKeyH    = keyH.filter(h => h.done).length
+  const keyScore    = doneKeyH === 0 ? 0 : doneKeyH === 1 ? p.keyHabits / 2 : p.keyHabits
+
+  const total = social + workout + water + zuccheri + umoreScore + todoScore + sonnoScore + habitsScore + keyScore
   const voto  = Math.round(total / 10)
 
-  // Ritorna null se tutti i campi erano a zero/vuoti (giornata non compilata)
   const hasSomeData = (
     Number(ch.social) || Number(ch.passi) || Number(ch.cyclette) ||
     Number(ch.yoga)   || Number(ch.acqua) || ch.zeroZuccheri     ||

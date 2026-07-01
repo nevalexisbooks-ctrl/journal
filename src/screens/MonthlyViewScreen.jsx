@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import {
-  toDateKey, calcCyclePhase, calcDayScore, isFutureKey,
+  toDateKey, calcCyclePhase, calcDayScore, isFutureKey, getPesiForDate,
 } from '../utils/calcWidgets.js'
 import styles from './MonthlyViewScreen.module.css'
 
@@ -81,11 +81,12 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
   const month = viewDate.getMonth()
 
   // ── Dati Firestore ────────────────────────────────────────────
-  const [dayDocs,   setDayDocs]   = useState({})   // key=YYYY-MM-DD, value=data|null
-  const [ciclo,     setCiclo]     = useState(null)
-  const [monthNote, setMonthNote] = useState('')
-  const [recap,     setRecap]     = useState(null)
-  const [votoMedio, setVotoMedio] = useState(null)
+  const [dayDocs,        setDayDocs]        = useState({})
+  const [ciclo,          setCiclo]          = useState(null)
+  const [monthNote,      setMonthNote]      = useState('')
+  const [recap,          setRecap]          = useState(null)
+  const [votoMedio,      setVotoMedio]      = useState(null)
+  const [scoreVersions,  setScoreVersions]  = useState([])
 
   // ── Refs auto-save note ───────────────────────────────────────
   const noteReadyRef  = useRef(false)
@@ -107,12 +108,16 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
 
       try {
         // Carica tutto in parallelo
-        const [daySnaps, cicloSnap, noteSnap] = await Promise.all([
+        const [daySnaps, cicloSnap, noteSnap, formulasSnap] = await Promise.all([
           Promise.all(keys.map(k => getDoc(doc(db, 'giorni', k)))),
           getDoc(doc(db, 'settings', 'ciclo')),
           getDoc(doc(db, 'mesi', toMonthKey(viewDate))),
+          getDoc(doc(db, 'settings', 'scoreFormulas')),
         ])
         if (cancelled) return
+
+        const versions = formulasSnap.exists() ? (formulasSnap.data().versions ?? []) : []
+        setScoreVersions(versions)
 
         // ── Mappa giorni ──────────────────────────────────────
         const docsMap = {}
@@ -128,7 +133,7 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
         setMonthNote(noteSnap.exists() ? (noteSnap.data().note ?? '') : '')
 
         // ── Calcola recap mensile ─────────────────────────────
-        calcRecap(docsMap)
+        calcRecap(docsMap, versions)
 
       } catch (err) {
         console.error('Errore caricamento mese:', err)
@@ -147,7 +152,7 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
   //  CALCOLO RECAP
   // ════════════════════════════════════════════════════════════
 
-  function calcRecap(docsMap) {
+  function calcRecap(docsMap, versions = []) {
     let passi = 0, acqua = 0, social = 0, cyclette = 0, yoga = 0
     let sonnoTot = 0, zeroZuccheri = 0
     let daysWithData = 0
@@ -175,7 +180,8 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
       const sh = sleepHours(d.sonno?.dalle, d.sonno?.alle)
       if (sh !== null) sonnoTot += sh
 
-      const score = calcDayScore(d)
+      const pesi  = getPesiForDate(versions, key)
+      const score = calcDayScore(d, pesi)
       if (score !== null) scores.push(score)
     })
 
@@ -296,7 +302,7 @@ export default function MonthlyViewScreen({ onBack, onOpenDetail }) {
               const dateKey = toDateKey(new Date(year, month, day))
               const dayData = dayDocs[dateKey] ?? null
               const hasData = !!dayData
-              const score   = hasData && past ? calcDayScore(dayData) : null
+              const score   = hasData && past ? calcDayScore(dayData, getPesiForDate(scoreVersions, dateKey)) : null
 
               return (
                 <div

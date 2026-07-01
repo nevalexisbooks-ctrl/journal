@@ -10,6 +10,7 @@ import {
   collection, getDocs, addDoc, writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
+import { DEFAULT_PESI, toDateKey } from '../utils/calcWidgets.js'
 import styles from './SettingsScreen.module.css'
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -67,6 +68,13 @@ export default function SettingsScreen({ onBack }) {
   // ── Key Habits ───────────────────────────────────────────────────────────
   const [keyHabits, setKeyHabits] = useState([])
 
+  // ── Formula Voto ─────────────────────────────────────────────────────────
+  const [formulaOpen,   setFormulaOpen]   = useState(false)
+  const [scoreVersions, setScoreVersions] = useState([])
+  const [editPesi,      setEditPesi]      = useState({ ...DEFAULT_PESI })
+  const [formulaSaving, setFormulaSaving] = useState(false)
+  const [formulaSaved,  setFormulaSaved]  = useState(false)
+
   // ── Loading ───────────────────────────────────────────────────────────────
   const [loading,     setLoading]     = useState(true)
 
@@ -83,13 +91,14 @@ export default function SettingsScreen({ onBack }) {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const [cicloSnap, habitsSnap, keyHabitsSnap, profiloSnap, promptSnap, memorieSnap] = await Promise.all([
+        const [cicloSnap, habitsSnap, keyHabitsSnap, profiloSnap, promptSnap, memorieSnap, formulasSnap] = await Promise.all([
           getDoc(doc(db, 'settings', 'ciclo')),
           getDoc(doc(db, 'settings', 'habits')),
           getDoc(doc(db, 'settings', 'keyHabits')),
           getDoc(doc(db, 'settings', 'profilo')),
           getDoc(doc(db, 'settings', 'aiPrompt')),
           getDocs(collection(db, 'memoria')),
+          getDoc(doc(db, 'settings', 'scoreFormulas')),
         ])
         if (cicloSnap.exists())    setCiclo(cicloSnap.data())
         if (habitsSnap.exists())   setHabits(habitsSnap.data().habits ?? [])
@@ -111,6 +120,20 @@ export default function SettingsScreen({ onBack }) {
         memorieSnap.forEach(d => voci.push({ id: d.id, ...d.data() }))
         voci.sort((a, b) => (b.data ?? 0) - (a.data ?? 0))
         setMemorie(voci)
+        // Formula Voto: carica versioni; se non esiste crea la versione default con dataInizio = oggi
+        if (formulasSnap.exists()) {
+          const versions = formulasSnap.data().versions ?? []
+          setScoreVersions(versions)
+          // Mostra nell'editor i pesi dell'ultima versione (la più recente)
+          if (versions.length > 0) {
+            const latest = [...versions].sort((a, b) => b.dataInizio.localeCompare(a.dataInizio))[0]
+            setEditPesi({ ...DEFAULT_PESI, ...latest.pesi })
+          }
+        } else {
+          const defaultVersion = { dataInizio: toDateKey(new Date()), pesi: { ...DEFAULT_PESI } }
+          await setDoc(doc(db, 'settings', 'scoreFormulas'), { versions: [defaultVersion] }, { merge: true })
+          setScoreVersions([defaultVersion])
+        }
       } catch (err) {
         console.error('Errore caricamento settings:', err)
         setAiPrompt(DEFAULT_PROMPT)
@@ -216,6 +239,29 @@ export default function SettingsScreen({ onBack }) {
     ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
     return arr
   })
+
+  // ════════════════════════════════════════════════════════════════
+  //  HANDLERS — FORMULA VOTO
+  // ════════════════════════════════════════════════════════════════
+
+  const sumPesi = Object.values(editPesi).reduce((a, b) => a + Number(b), 0)
+
+  const saveFormulaVersion = async () => {
+    if (sumPesi !== 100) return
+    setFormulaSaving(true)
+    try {
+      const newVersion = { dataInizio: toDateKey(new Date()), pesi: { ...editPesi } }
+      const updated    = [...scoreVersions, newVersion]
+      await setDoc(doc(db, 'settings', 'scoreFormulas'), { versions: updated }, { merge: true })
+      setScoreVersions(updated)
+      setFormulaSaved(true)
+      setTimeout(() => setFormulaSaved(false), 2500)
+    } catch (err) {
+      console.error('Errore salvataggio formula:', err)
+    } finally {
+      setFormulaSaving(false)
+    }
+  }
 
   // ════════════════════════════════════════════════════════════════
   //  HANDLERS — MANUTENZIONE
@@ -525,6 +571,94 @@ export default function SettingsScreen({ onBack }) {
           >
             {cicloSaving ? 'Salvataggio…' : cicloSaved ? '✓ Salvato' : 'Salva'}
           </button>
+        </section>
+
+        {/* ── FORMULA VOTO ────────────────────────────────────── */}
+        <section className={styles.cardSand}>
+          <button className={styles.collapseHeader} onClick={() => setFormulaOpen(o => !o)}>
+            <h2 className={styles.blockTitle} style={{ margin: 0 }}>Formula Voto</h2>
+            <span className={`${styles.collapseChevron} ${formulaOpen ? styles.collapseOpen : ''}`}>▾</span>
+          </button>
+
+          {formulaOpen && (
+            <div className={styles.collapseBody}>
+              {/* Formula statica — trasparenza */}
+              <div className={styles.formulaText}>
+                <p>VOTO = (Social + Workout + Acqua + ZeroJunkFood + Umore + Task + Sonno + SmallHabits + KeyHabits) ÷ 10</p>
+                <p style={{ marginTop: 6 }}>
+                  Social = %social × <b>PESO</b> / 100 &nbsp;|&nbsp;
+                  Workout = %workout × <b>PESO</b> / 100 &nbsp;|&nbsp;
+                  Acqua = %acqua × <b>PESO</b> / 100
+                </p>
+                <p>
+                  ZeroJunkFood = sì → <b>PESO</b>, no → 0 &nbsp;|&nbsp;
+                  Umore = (voto/10) × <b>PESO</b> &nbsp;|&nbsp;
+                  Task = (fatte/tot) × <b>PESO</b>
+                </p>
+                <p>
+                  Sonno = (qualità/10) × <b>PESO</b> &nbsp;|&nbsp;
+                  SmallHabits: 0→0 | 1→<b>PESO</b>/2 | 2+→<b>PESO</b> &nbsp;|&nbsp;
+                  KeyHabits: 0→0 | 1→<b>PESO</b>/2 | 2+→<b>PESO</b>
+                </p>
+                <p style={{ marginTop: 4, fontStyle: 'italic' }}>Vincolo: la somma di tutti i pesi deve essere 100.</p>
+              </div>
+
+              {/* Input pesi */}
+              <div className={styles.pesiGrid}>
+                {[
+                  ['social',       'Social'],
+                  ['workout',      'Workout'],
+                  ['acqua',        'Acqua'],
+                  ['zeroZuccheri', 'Zero Junk Food'],
+                  ['umore',        'Umore'],
+                  ['task',         'Task'],
+                  ['sonno',        'Sonno'],
+                  ['smallHabits',  'Small Habits'],
+                  ['keyHabits',    'Key Habits'],
+                ].map(([key, label]) => (
+                  <div key={key} className={styles.pesoRow}>
+                    <span className={styles.pesoLabel}>{label}</span>
+                    <input
+                      className={`${styles.fieldInput} ${styles.inputShort}`}
+                      type="number" min="0" max="100"
+                      value={editPesi[key] ?? 0}
+                      onChange={e => setEditPesi(p => ({ ...p, [key]: Number(e.target.value) }))}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Somma in tempo reale */}
+              <div className={`${styles.pesoSum} ${sumPesi !== 100 ? styles.pesoSumWarn : styles.pesoSumOk}`}>
+                Somma pesi: <strong>{sumPesi}</strong> / 100
+                {sumPesi !== 100 && <span> — deve essere esattamente 100</span>}
+              </div>
+
+              {/* Storico versioni */}
+              {scoreVersions.length > 0 && (
+                <div className={styles.formulaHistory}>
+                  <p className={styles.formulaHistoryTitle}>Versioni salvate ({scoreVersions.length})</p>
+                  {[...scoreVersions]
+                    .sort((a, b) => b.dataInizio.localeCompare(a.dataInizio))
+                    .map((v, i) => (
+                      <p key={i} className={styles.formulaHistoryRow}>
+                        {v.dataInizio} — somma {Object.values(v.pesi).reduce((a,b) => a+b, 0)} pt
+                      </p>
+                    ))
+                  }
+                </div>
+              )}
+
+              <button
+                className={`${styles.btnPrimary} ${formulaSaved ? styles.btnSaved : ''}`}
+                onClick={saveFormulaVersion}
+                disabled={formulaSaving || sumPesi !== 100}
+                style={{ marginTop: 14 }}
+              >
+                {formulaSaving ? 'Salvataggio…' : formulaSaved ? '✓ Versione salvata' : 'Salva nuova versione'}
+              </button>
+            </div>
+          )}
         </section>
 
         {/* ── KEY HABITS ──────────────────────────────────────── */}
