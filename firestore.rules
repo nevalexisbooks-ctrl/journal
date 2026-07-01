@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // La chiave API Anthropic è qui — solo firebase-admin (Cloud Function) può accedervi
+    match /settings/serverConfig {
+      allow read, write: if false;
+    }
+
+    // Tutto il resto è accessibile liberamente (app privata, accesso controllato da PIN lato UI)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+
+  }
+}

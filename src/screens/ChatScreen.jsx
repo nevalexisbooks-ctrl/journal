@@ -18,8 +18,16 @@ import {
 import styles from './ChatScreen.module.css'
 
 // ── Costanti ────────────────────────────────────────────────────────────────────
-const PROXY_URL   = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
-const CLAUDE_MODEL = 'claude-haiku-4-5'
+const PROXY_URL = 'https://us-central1-journal-4782d.cloudfunctions.net/claudeProxy'
+
+const GEMINI_MODELS = [
+  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+  { id: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash'      },
+  { id: 'gemini-3.5-flash',      label: 'Gemini 3.5 Flash'      },
+]
+const DEFAULT_MODEL = 'gemini-2.5-flash-lite'
+// Estrazione memorie sempre sul modello più economico (indipendente dalla scelta utente)
+const EXTRACT_MODEL = 'gemini-2.5-flash-lite'
 
 const DEFAULT_SYSTEM =
   'Sei un assistente empatico e motivante. Hai accesso ai dati del journal degli ultimi giorni. ' +
@@ -286,13 +294,13 @@ async function buildSystemPrompt(memorie = []) {
 //  CHIAMATA AL PROXY FIREBASE
 // ════════════════════════════════════════════════════════════════
 
-async function callProxy(messages, systemPrompt, signal, maxTokens = 350) {
+async function callProxy(messages, systemPrompt, signal, maxTokens = 350, model = DEFAULT_MODEL) {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal,
     body: JSON.stringify({
-      model:      CLAUDE_MODEL,
+      model,
       max_tokens: maxTokens,
       system:     systemPrompt,
       messages:   messages.map(m => ({ role: m.role, content: m.content })),
@@ -330,8 +338,9 @@ async function extractAndSaveMemory(userText, aiReply) {
         { role: 'user',      content: 'Analizza questo scambio come descritto nelle istruzioni.' },
       ],
       EXTRACT_SYSTEM,
-      null,   // nessun signal — task in background
-      150,    // max_tokens ridotto
+      null,          // nessun signal — task in background
+      150,           // max_tokens ridotto
+      EXTRACT_MODEL, // sempre flash-lite per risparmiare
     )
 
     const trimmed = raw.trim()
@@ -359,24 +368,41 @@ export default function ChatScreen({ onBack }) {
   const [historyLoaded,  setHistoryLoaded]  = useState(false)
   const [greeting,       setGreeting]       = useState(true)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
+  const [model,          setModel]          = useState(DEFAULT_MODEL)
 
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
   const abortRef  = useRef(null)
 
-  // ── Mount: carica cronologia + memorie + genera saluto ───────
+  // ── Cambia modello e salva preferenza su Firestore ───────────
+  const handleModelChange = async (newModel) => {
+    setModel(newModel)
+    try {
+      await setDoc(doc(db, 'settings', 'aiPrompt'), { model: newModel }, { merge: true })
+    } catch (err) {
+      console.warn('Errore salvataggio modello:', err)
+    }
+  }
+
+  // ── Mount: carica cronologia + memorie + modello + genera saluto
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
     abortRef.current = controller
 
     async function init() {
-      // 1. Carica cronologia e memorie in parallelo
-      const [history, memorie] = await Promise.all([
+      // 1. Carica cronologia, memorie e preferenza modello in parallelo
+      const [history, memorie, aiPromptSnap] = await Promise.all([
         loadHistoryFromFirestore(),
         loadMemorie(),
+        getDoc(doc(db, 'settings', 'aiPrompt')),
       ])
       if (cancelled) return
+
+      const savedModel = aiPromptSnap.exists()
+        ? (aiPromptSnap.data().model ?? DEFAULT_MODEL)
+        : DEFAULT_MODEL
+      setModel(savedModel)
 
       // 2. Mostra bolla "..." mentre il saluto viene generato
       setMessages([
@@ -390,12 +416,13 @@ export default function ChatScreen({ onBack }) {
         const systemPrompt = await buildSystemPrompt(memorie)
         const greetSystem  = `${systemPrompt}\n\n${GREETING_INSTRUCTION}`
 
-        // 4. Chiama l'AI per il saluto
+        // 4. Chiama l'AI per il saluto con il modello salvato
         const greetMsg = await callProxy(
           [{ role: 'user', content: 'apertura chat' }],
           greetSystem,
           controller.signal,
-          80,   // saluto: poche parole bastano
+          80,         // saluto: poche parole bastano
+          savedModel, // usa il modello preferito caricato da Firestore
         )
         if (cancelled) return
 
@@ -521,7 +548,7 @@ export default function ChatScreen({ onBack }) {
       const memorie = await loadMemorie()
       const systemPrompt = await buildSystemPrompt(memorie)
 
-      aiReply = await callProxy(apiHistory, systemPrompt, controller.signal, 350)
+      aiReply = await callProxy(apiHistory, systemPrompt, controller.signal, 350, model)
       setMessages(prev => [...prev, { role: 'assistant', content: aiReply, timestamp: Date.now() }])
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -593,6 +620,16 @@ export default function ChatScreen({ onBack }) {
           </svg>
         </button>
         <p className={styles.headerTitle}>Il tuo Assistente</p>
+        <select
+          className={styles.modelSelect}
+          value={model}
+          onChange={e => handleModelChange(e.target.value)}
+          aria-label="Seleziona modello AI"
+        >
+          {GEMINI_MODELS.map(m => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
+        </select>
       </header>
 
       {/* ══ MESSAGGI ════════════════════════════════════════════ */}

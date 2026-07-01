@@ -1,31 +1,84 @@
-const functions = require("firebase-functions");
-const fetch = require("node-fetch");
-const admin = require("firebase-admin");
+// ─── claudeProxy — ora usa Gemini invece di Anthropic ────────────────────────
+// Riceve dal frontend lo stesso formato (model, max_tokens, system, messages).
+// Traduce in formato Gemini, chiama l'API, ritorna {content:[{text:"..."}]}
+// in modo che il frontend non debba cambiare la gestione delle risposte.
+// La GEMINI_KEY è un Firebase Secret (firebase functions:secrets:set GEMINI_KEY).
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
+const fetch  = require("node-fetch");
+const admin  = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.claudeProxy = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") { res.status(204).send(""); return; }
-  try {
-    const configDoc = await admin.firestore().collection("settings").doc("serverConfig").get();
-    const apiKey = configDoc.data()?.anthropicKey;
-    console.log("API key trovata:", apiKey ? "sì, lunghezza " + apiKey.length : "NO - undefined");
-    if (!apiKey) { res.status(500).json({ error: "API key non configurata" }); return; }
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(req.body)
-    });
-    const data = await response.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+const GEMINI_KEY  = defineSecret("GEMINI_KEY");
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
+/** Converte messaggi formato Anthropic → formato Gemini */
+function toGeminiContents(messages) {
+  return messages.map(m => ({
+    role:  m.role === "assistant" ? "model" : "user",
+    parts: [{ text: typeof m.content === "string"
+      ? m.content
+      : (m.content ?? []).map(c => c.text ?? "").join("") }],
+  }))
+}
+
+exports.claudeProxy = onRequest(
+  { secrets: [GEMINI_KEY] },
+  async (req, res) => {
+    res.set("Access-Control-Allow-Origin",  "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") { res.status(204).send(""); return; }
+
+    try {
+      const apiKey = GEMINI_KEY.value();
+      if (!apiKey) {
+        res.status(500).json({ error: { message: "GEMINI_KEY non configurata" } });
+        return;
+      }
+
+      const {
+        model      = "gemini-2.5-flash-lite",
+        max_tokens = 350,
+        system,
+        messages   = [],
+      } = req.body;
+
+      // ── Costruisce corpo richiesta Gemini ──────────────────────
+      const geminiBody = {
+        contents:         toGeminiContents(messages),
+        generationConfig: { maxOutputTokens: max_tokens },
+      };
+      if (system) {
+        geminiBody.system_instruction = { parts: [{ text: system }] };
+      }
+
+      // ── Chiama Gemini REST API ──────────────────────────────────
+      const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
+      const geminiRes = await fetch(url, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(geminiBody),
+      });
+
+      const data = await geminiRes.json();
+
+      if (!geminiRes.ok) {
+        console.error("Gemini error:", JSON.stringify(data));
+        res.status(geminiRes.status).json({
+          error: { message: data.error?.message ?? `Gemini HTTP ${geminiRes.status}` },
+        });
+        return;
+      }
+
+      // ── Traduce risposta → formato Anthropic atteso dal frontend ─
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      res.json({ content: [{ text }] });
+
+    } catch (err) {
+      console.error("claudeProxy error:", err);
+      res.status(500).json({ error: { message: err.message } });
+    }
   }
-});
+);

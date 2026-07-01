@@ -36,6 +36,27 @@
   font-size: 2rem; font-weight: 700; color: #fff;
 }
 
+.modelSelect {
+  display: block;
+  margin: 6px auto 0;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
+  transition: background 0.15s;
+}
+.modelSelect:hover { background: rgba(255,255,255,0.28); }
+.modelSelect option { background: #8A9E85; color: #fff; }
+
 /* ── AREA MESSAGGI ───────────────────────────────────────────── */
 .messages {
   flex: 1;
