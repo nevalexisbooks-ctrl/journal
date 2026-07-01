@@ -124,9 +124,11 @@ export default function SettingsScreen({ onBack }) {
         if (formulasSnap.exists()) {
           const versions = formulasSnap.data().versions ?? []
           setScoreVersions(versions)
-          // Mostra nell'editor i pesi dell'ultima versione (la più recente)
           if (versions.length > 0) {
-            const latest = [...versions].sort((a, b) => b.dataInizio.localeCompare(a.dataInizio))[0]
+            // Tiebreaker: indice array discendente → l'ultima versione salvata per stessa data vince
+            const latest = versions
+              .map((v, i) => ({ ...v, _i: i }))
+              .sort((a, b) => b.dataInizio.localeCompare(a.dataInizio) || b._i - a._i)[0]
             setEditPesi({ ...DEFAULT_PESI, ...latest.pesi })
           }
         } else {
@@ -250,8 +252,13 @@ export default function SettingsScreen({ onBack }) {
     if (sumPesi !== 100) return
     setFormulaSaving(true)
     try {
-      const newVersion = { dataInizio: toDateKey(new Date()), pesi: { ...editPesi } }
-      const updated    = [...scoreVersions, newVersion]
+      const today      = toDateKey(new Date())
+      const newPesi    = { ...editPesi }
+      // Upsert: se esiste già una versione per oggi, aggiornala; altrimenti aggiungi
+      const exists     = scoreVersions.some(v => v.dataInizio === today)
+      const updated    = exists
+        ? scoreVersions.map(v => v.dataInizio === today ? { dataInizio: today, pesi: newPesi } : v)
+        : [...scoreVersions, { dataInizio: today, pesi: newPesi }]
       await setDoc(doc(db, 'settings', 'scoreFormulas'), { versions: updated }, { merge: true })
       setScoreVersions(updated)
       setFormulaSaved(true)

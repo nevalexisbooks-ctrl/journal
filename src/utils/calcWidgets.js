@@ -61,8 +61,11 @@ export const DEFAULT_PESI = {
  */
 export function getPesiForDate(versions, dateKey) {
   if (!versions || versions.length === 0) return DEFAULT_PESI
-  const sorted = [...versions].sort((a, b) => b.dataInizio.localeCompare(a.dataInizio))
-  const match  = sorted.find(v => v.dataInizio <= dateKey)
+  // Ordina per data desc, tiebreaker: indice array desc (ultima entry salvata vince)
+  const sorted = versions
+    .map((v, i) => ({ ...v, _i: i }))
+    .sort((a, b) => b.dataInizio.localeCompare(a.dataInizio) || b._i - a._i)
+  const match = sorted.find(v => v.dataInizio <= dateKey)
   return match ? { ...DEFAULT_PESI, ...match.pesi } : DEFAULT_PESI
 }
 
