@@ -101,19 +101,19 @@ const COLS = [
     key: 'social',
     label: 'Social',
     unit: 'min',
-    // Scala invertita: 0 min = rosso pieno, 125+ min = bianco
+    // Scala invertita: 0 min = bianco, ≥60 min = rosso pieno (fisso)
     colorFn: (ch) => {
       if (ch.social == null || ch.social === '') return null
       const v = Number(ch.social) || 0
-      const t = Math.min(1, v / 125)
-      // t=0 → rosso, t=1 → bianco
-      return lerpHex('#E05555', '#FFFFFF', t)
+      const t = Math.min(1, v / 60)
+      // t=0 → bianco, t=1 → rosso
+      return lerpHex('#FFFFFF', '#E05555', t)
     },
     tooltip: (ch) => ch.social != null && ch.social !== '' ? `${ch.social} min social` : null,
     legendFrom: '0 min',
-    legendTo: '≥125 min',
-    colorFrom: '#E05555',
-    colorTo: '#FFFFFF',
+    legendTo: '≥60 min',
+    colorFrom: '#FFFFFF',
+    colorTo: '#E05555',
   },
   {
     key: 'cyclette',
@@ -156,11 +156,12 @@ const COLS = [
     colorFn: (_, dayData) => {
       const v = Number(dayData?.umore?.voto)
       if (!v) return null
-      const t = (v - 1) / 9   // 1→0, 10→1
+      // Voti 1-5 → tutti bianchi; 5-10 → gradiente completo
+      const t = Math.max(0, (v - 5) / 5)
       return lerpHex('#FFFFFF', '#D4A843', t)
     },
     tooltip: (_, dayData) => dayData?.umore?.voto != null ? `Umore ${dayData.umore.voto}/10` : null,
-    legendFrom: '1/10',
+    legendFrom: '1–5/10',
     legendTo: '10/10',
     colorFrom: '#FFFFFF',
     colorTo: '#D4A843',
@@ -177,10 +178,12 @@ const COLS = [
       let mins = (ah * 60 + am) - (dh * 60 + dm)
       if (mins < 0) mins += 1440
       const ore = mins / 60
-      // Curva a campana: picco a 8h
-      const t = ore <= 8
-        ? Math.min(1, ore / 8)
-        : Math.max(0, 1 - (ore - 8) / 4)
+      // Plateau 8-10h al colore massimo; rampe simmetriche (÷8) fuori dal plateau
+      const t = ore < 8
+        ? ore / 8
+        : ore <= 10
+          ? 1
+          : Math.max(0, 1 - (ore - 10) / 8)
       return lerpHex('#FFFFFF', '#6B8CAE', t)
     },
     tooltip: (_, dayData) => {
@@ -194,8 +197,8 @@ const COLS = [
       const m = mins % 60
       return m > 0 ? `${h}h ${m}min` : `${h}h`
     },
-    legendFrom: '0h / 12h+',
-    legendTo: '8h (picco)',
+    legendFrom: '0h / 18h+',
+    legendTo: 'plateau 8–10h',
     colorFrom: '#FFFFFF',
     colorTo: '#6B8CAE',
   },

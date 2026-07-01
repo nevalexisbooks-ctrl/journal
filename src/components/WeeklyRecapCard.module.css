@@ -6,13 +6,16 @@
   padding: 14px 12px;
   cursor: pointer;
   transition: transform 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .card:active { transform: scale(0.97); }
 
 .title {
   font-size: 0.85rem;
   font-weight: 800;
-  margin-bottom: 10px;
+  margin: 0;
   color: var(--text);
   text-align: center;
 }

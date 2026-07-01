@@ -29,26 +29,38 @@
 .calGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 4px 2px;
 }
 
 .calHeaderCell {
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--text-muted);
   text-align: center;
-  padding-bottom: 3px;
+  padding-bottom: 4px;
 }
 
 .calCell {
-  font-size: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 0 6px;
+  border-radius: 6px;
+}
+
+.dayNum {
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
-  text-align: center;
-  padding: 3px 0;
-  line-height: 1.6;
-  border-radius: 50%;
-  /* TODO: collegare Firebase — aggiungere classi per giorni con entry */
+  line-height: 1;
+}
+
+.dayScore {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1;
 }
 
 .calCellEmpty {
@@ -58,7 +70,10 @@
 /* Giorno corrente — bordo verde salvia */
 .calToday {
   border: 2px solid var(--header);
+  border-radius: 6px;
+}
+
+.calToday .dayNum {
   color: var(--header);
   font-weight: 800;
-  border-radius: 50%;
 }

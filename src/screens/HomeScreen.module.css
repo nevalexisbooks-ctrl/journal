@@ -12,9 +12,3 @@
   gap: 14px;
 }
 
-/* Griglia a due colonne per Weekly + Monthly */
-.twoCols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}

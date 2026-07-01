@@ -21,10 +21,9 @@ export default function HomeScreen({ navigate }) {
 
         <JournalCard onClick={() => navigate(SCREENS.CHAT)} />
 
-        <div className={styles.twoCols}>
-          <WeeklyRecapCard onClick={() => navigate(SCREENS.WEEKLY)} />
-          <MonthlyViewCard onClick={() => navigate(SCREENS.MONTHLY)} />
-        </div>
+        <MonthlyViewCard onClick={() => navigate(SCREENS.MONTHLY)} />
+
+        <WeeklyRecapCard onClick={() => navigate(SCREENS.WEEKLY)} />
 
       </main>
     </div>

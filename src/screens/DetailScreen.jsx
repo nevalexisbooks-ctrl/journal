@@ -589,7 +589,7 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
                     <line x1="12" y1="6" x2="6" y2="12" />
                   </svg>
                 </span>
-                Zero zuccheri
+                Zero junk food
               </label>
               <div className={styles.toggleGroup}>
                 <button
@@ -609,13 +609,11 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
           </div>
         </section>
 
-        {/* ── QUADRANTI 2×2 ──────────────────────────────────── */}
-        <div className={styles.twoByTwo}>
+        {/* ── SONNO + CICLO (affiancati) ──────────────────────── */}
+        <div className={styles.sonnoCicloRow}>
 
-          {/* Sonno — salvia, riga 1 sx */}
           <section className={`${styles.quadSage} ${future ? styles.disabled : ''}`}>
             <h3 className={styles.quadTitle}>Sonno</h3>
-
             {[
               { field: 'dalle', label: 'Dalle' },
               { field: 'alle',  label: 'Alle' },
@@ -631,11 +629,9 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
                 />
               </div>
             ))}
-
             <p className={styles.sonnoTotal}>
               Totale <strong>{sleepTotal}</strong> ore
             </p>
-
             <div className={styles.sonnoRow}>
               <span className={styles.sonnoLabel}>Qualità</span>
               <div className={styles.challengeInputUnit}>
@@ -652,71 +648,74 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
             </div>
           </section>
 
-          {/* Ciclo — bianco, riga 1 dx (mai disabilitato) */}
           <section className={styles.quadWhite}>
             <h3 className={styles.quadTitle}>Ciclo</h3>
-            {/* Fase calcolata da settings/ciclo tramite calcCyclePhase() */}
             <div className={styles.donutWrapper}>
               <CycleDonut activeIdx={cycleInfo.phaseIdx} />
             </div>
-            {/* Mostra il giorno ASSOLUTO del ciclo (es. "Giorno 22"), non il giorno nella fase */}
             <p className={styles.cyclePhase}>{CYCLE_PHASES[cycleInfo.phaseIdx].name}</p>
             <p className={styles.cycleDay}>Giorno {cycleInfo.dayInCycle}</p>
             <p className={styles.cycleDesc}>{getCycleText(cycleInfo.dayInCycle)}</p>
           </section>
 
-          {/* Umore — bianco, riga 2 sx */}
-          <section className={`${styles.quadWhite} ${future ? styles.disabled : ''}`}>
-            <h3 className={styles.quadTitle}>Umore</h3>
-
-            <div className={styles.emojiGrid}>
-              {MOOD_EMOJI.map((em, i) => (
-                <button
-                  key={i}
-                  className={`${styles.emojiBtn} ${emojiSel.includes(i) ? styles.emojiSel : ''}`}
-                  onClick={() => !future && toggleEmoji(i)}
-                  aria-pressed={emojiSel.includes(i)}
-                  disabled={future}
-                >
-                  {em}
-                </button>
-              ))}
-            </div>
-
-            <div className={`${styles.sonnoRow} ${styles.umoreVotoRow}`}>
-              <span className={styles.sonnoLabel}>Voto</span>
-              <div className={styles.challengeInputUnit}>
-                <input
-                  className={`${styles.challengeInput} ${styles.smallInput}`}
-                  type="number" min="1" max="10"
-                  value={umoreVoto}
-                  onChange={e => setUmoreVoto(e.target.value)}
-                  disabled={future}
-                  placeholder="—"
-                />
-                <span className={styles.unit}>/10</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Small Habits — salvia, riga 2 dx */}
-          <section className={`${styles.quadSage} ${future ? styles.disabled : ''}`}>
-            <h3 className={styles.quadTitle}>Small Habits</h3>
-            {/* TODO: Firebase — permettere personalizzazione lista habit */}
-            <ul className={styles.habitList}>
-              {habits.map(h => (
-                <li key={h.id} className={styles.habitItem}>
-                  <div
-                    className={`${styles.habitCheck} ${h.done ? styles.habitChecked : ''}`}
-                    onClick={() => !future && toggleHabit(h.id)}
-                  />
-                  <span className={h.done ? styles.habitDone : ''}>{h.text}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
         </div>
+
+        {/* ── UMORE (riga intera) ──────────────────────────────── */}
+        <section className={`${styles.cardWhite} ${future ? styles.disabled : ''}`}>
+          <h2 className={styles.blockTitle}>Umore</h2>
+
+          <div className={styles.emojiRow}>
+            {MOOD_EMOJI.map((em, i) => (
+              <button
+                key={i}
+                className={`${styles.emojiBtn} ${emojiSel.includes(i) ? styles.emojiSel : ''}`}
+                onClick={() => !future && toggleEmoji(i)}
+                aria-pressed={emojiSel.includes(i)}
+                disabled={future}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.umoreVotoRow}>
+            <div className={styles.challengeInputUnit}>
+              <span className={styles.sonnoLabel}>Voto</span>
+              <input
+                className={`${styles.challengeInput} ${styles.smallInput}`}
+                type="number" min="1" max="10"
+                value={umoreVoto}
+                onChange={e => setUmoreVoto(e.target.value)}
+                disabled={future}
+                placeholder="—"
+              />
+              <span className={styles.unit}>/10</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── SMALL HABITS (riga intera) ───────────────────────── */}
+        <section className={`${styles.cardSand} ${future ? styles.disabled : ''}`}>
+          <h2 className={styles.blockTitle}>Small Habits</h2>
+          <ul className={styles.habitList}>
+            {habits.map(h => (
+              <li key={h.id} className={styles.habitItem}>
+                <div
+                  className={`${styles.habitCheck} ${h.done ? styles.habitChecked : ''}`}
+                  onClick={() => !future && toggleHabit(h.id)}
+                />
+                <span className={h.done ? styles.habitDone : ''}>{h.text}</span>
+              </li>
+            ))}
+          </ul>
+          <button
+            className={styles.recapHabitBtn}
+            onClick={onOpenRecapHabit}
+            type="button"
+          >
+            📊 Recap Habit
+          </button>
+        </section>
 
         {/* ── NOTE (sempre attivo) ────────────────────────────── */}
         <section className={styles.cardSand}>
@@ -726,15 +725,8 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit }) 
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder="Scrivi qualcosa..."
-            rows={5}
+            rows={3}
           />
-          <button
-            className={styles.recapHabitBtn}
-            onClick={onOpenRecapHabit}
-            type="button"
-          >
-            📊 Recap Habit
-          </button>
         </section>
 
       </main>

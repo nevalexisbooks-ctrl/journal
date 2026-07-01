@@ -1,7 +1,8 @@
 // ─── Card Monthly View ────────────────────────────────────────────────────
-// Mini calendario mensile con il giorno corrente cerchiato
-// TODO: collegare Firebase — colorare giorni con entry reali
 import React, { useEffect, useState } from 'react'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase.js'
+import { toDateKey, calcDayScore, isFutureKey } from '../utils/calcWidgets.js'
 import styles from './MonthlyViewCard.module.css'
 
 const GIORNI_HDR = ['L','M','M','G','V','S','D']
@@ -13,22 +14,42 @@ function buildCalendar() {
   const giorno    = oggi.getDate()
   const totGiorni = new Date(anno, mese + 1, 0).getDate()
 
-  // Nome mese in italiano, capitalizzato
   const nomeMese = oggi.toLocaleDateString('it-IT', { month: 'long' })
   const label    = nomeMese.charAt(0).toUpperCase() + nomeMese.slice(1) + ' ' + anno
 
-  // Offset: primo giorno del mese (0=lun…6=dom)
   const primoJs = new Date(anno, mese, 1).getDay()
   const offset  = primoJs === 0 ? 6 : primoJs - 1
 
-  return { label, offset, totGiorni, giorno }
+  return { anno, mese, label, offset, totGiorni, giorno }
 }
 
 export default function MonthlyViewCard({ onClick }) {
-  const [cal, setCal] = useState(null)
+  const [cal,    setCal]    = useState(null)
+  const [scores, setScores] = useState({}) // { 'YYYY-MM-DD': number|null }
 
   useEffect(() => {
-    setCal(buildCalendar())
+    const c = buildCalendar()
+    setCal(c)
+
+    // Carica voti per tutti i giorni del mese corrente
+    async function loadScores() {
+      const keys = Array.from({ length: c.totGiorni }, (_, i) => {
+        const d = new Date(c.anno, c.mese, i + 1)
+        return toDateKey(d)
+      })
+
+      // Salta giorni futuri
+      const pastKeys = keys.filter(k => !isFutureKey(k))
+      const snaps = await Promise.all(pastKeys.map(k => getDoc(doc(db, 'giorni', k))))
+
+      const result = {}
+      pastKeys.forEach((k, i) => {
+        result[k] = snaps[i].exists() ? calcDayScore(snaps[i].data()) : null
+      })
+      setScores(result)
+    }
+
+    loadScores()
   }, [])
 
   return (
@@ -41,31 +62,33 @@ export default function MonthlyViewCard({ onClick }) {
       onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
     >
       <p className={styles.title}>Monthly view</p>
-
-      {/* Etichetta mese/anno */}
       <p className={styles.monthLabel}>{cal?.label ?? ''}</p>
 
-      {/* Griglia calendario */}
       <div className={styles.calGrid}>
-        {/* Intestazioni */}
         {GIORNI_HDR.map((h, i) => (
           <div key={i} className={styles.calHeaderCell}>{h}</div>
         ))}
 
-        {/* Celle vuote per offset */}
         {cal && Array.from({ length: cal.offset }).map((_, i) => (
           <div key={`e${i}`} className={styles.calCellEmpty} />
         ))}
 
-        {/* Giorni del mese */}
-        {cal && Array.from({ length: cal.totGiorni }, (_, i) => i + 1).map((d) => (
-          <div
-            key={d}
-            className={`${styles.calCell} ${d === cal.giorno ? styles.calToday : ''}`}
-          >
-            {d}
-          </div>
-        ))}
+        {cal && Array.from({ length: cal.totGiorni }, (_, i) => i + 1).map((d) => {
+          const dateKey = toDateKey(new Date(cal.anno, cal.mese, d))
+          const isFuture = isFutureKey(dateKey)
+          const score = scores[dateKey] ?? null
+          return (
+            <div
+              key={d}
+              className={`${styles.calCell} ${d === cal.giorno ? styles.calToday : ''}`}
+            >
+              <span className={styles.dayNum}>{d}</span>
+              {!isFuture && score !== null && (
+                <span className={styles.dayScore}>{score}</span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </article>
   )
