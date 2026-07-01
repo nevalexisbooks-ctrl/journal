@@ -77,14 +77,23 @@ exports.claudeProxy = onRequest(
       }
 
       // ── Traduce risposta → formato Anthropic atteso dal frontend ─
-      const candidate   = data.candidates?.[0];
+      const candidate    = data.candidates?.[0];
       const finishReason = candidate?.finishReason ?? "UNKNOWN";
       // Concatena tutte le parti visibili (esclude eventuali blocchi thought)
       const parts = candidate?.content?.parts ?? [];
       const text  = parts.filter(p => !p.thought).map(p => p.text ?? "").join("");
-      if (finishReason !== "STOP") {
-        console.warn(`Gemini finishReason: ${finishReason} — testo parziale: ${text.length} chars`);
-      }
+
+      // Log diagnostico: token thinking vs output + finishReason
+      const usage = data.usageMetadata ?? {};
+      console.log(
+        `[claudeProxy] model=${model} finishReason=${finishReason}` +
+        ` | promptTokens=${usage.promptTokenCount ?? "?"}` +
+        ` | thinkingTokens=${usage.thoughtsTokenCount ?? 0}` +
+        ` | outputTokens=${usage.candidatesTokenCount ?? "?"}` +
+        ` | totalTokens=${usage.totalTokenCount ?? "?"}` +
+        ` | outputChars=${text.length}`
+      );
+
       res.json({ content: [{ text }] });
 
     } catch (err) {

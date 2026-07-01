@@ -548,7 +548,7 @@ export default function ChatScreen({ onBack }) {
       const memorie = await loadMemorie()
       const systemPrompt = await buildSystemPrompt(memorie)
 
-      aiReply = await callProxy(apiHistory, systemPrompt, controller.signal, 1000, model)
+      aiReply = await callProxy(apiHistory, systemPrompt, controller.signal, 2500, model)
       setMessages(prev => [...prev, { role: 'assistant', content: aiReply, timestamp: Date.now() }])
     } catch (err) {
       if (err.name === 'AbortError') {
