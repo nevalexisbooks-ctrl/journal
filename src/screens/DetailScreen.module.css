@@ -576,7 +576,7 @@
 
 .recapBtn {
   padding: 12px 10px;
-  background: var(--white);
+  background: #D9C9A8;
   border: none;
   border-radius: 12px;
   font-family: 'Open Sans', sans-serif;
@@ -589,6 +589,37 @@
   transition: background 0.15s, box-shadow 0.15s;
 }
 .recapBtn:hover {
-  background: var(--sage-light);
+  background: #c9b896;
   box-shadow: var(--shadow);
+}
+
+/* ── Card Todo (terracotta) ──────────────────────────────── */
+.cardTodo {
+  background: #D9A88A;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 16px;
+}
+
+/* ── Card Key Habits (verde salvia scuro) ────────────────── */
+.cardKeyHabits {
+  background: #8A9E85;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 16px;
+}
+.cardKeyHabits .blockTitle,
+.cardKeyHabits .habitItem {
+  color: #fff;
+}
+.cardKeyHabits .habitCheck {
+  border-color: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.25);
+}
+.cardKeyHabits .habitChecked {
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.9);
+}
+.cardKeyHabits .habitChecked::after {
+  color: #5a7a55;
 }

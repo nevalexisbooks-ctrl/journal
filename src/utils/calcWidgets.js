@@ -42,17 +42,19 @@ export function calcWaterPct(litri) {
 // ════════════════════════════════════════════════════════════════
 
 export const DEFAULT_PESI = {
-  social:       15,
-  workout:      15,
-  acqua:        15,
-  zeroZuccheri: 15,
-  umore:        15,
-  task:         11,
-  sonno:         7,
-  smallHabits:   2,
-  keyHabits:     5,
+  social:             15,
+  workout:            15,
+  acqua:              15,
+  zeroZuccheri:       15,
+  umore:              15,
+  task:               11,
+  sonno:               7,
+  smallHabits:         2,   // tetto massimo punti Small Habits
+  keyHabits:           5,   // tetto massimo punti Key Habits
+  puntiPerSmallHabit:  0.5, // punti per ogni small habit completata (non conta nella somma 100)
+  puntiPerKeyHabit:    1,   // punti per ogni key habit completata (non conta nella somma 100)
 }
-// somma DEFAULT_PESI = 100
+// somma dei 9 pesi "veri" (esclusi puntiPer*) = 100
 
 /**
  * Dato un array di versioni formula [{dataInizio, pesi}] e una chiave YYYY-MM-DD,
@@ -107,13 +109,13 @@ export function calcDayScore(dayData, pesi = DEFAULT_PESI) {
   // 7. Sonno: (qualità/10) × p.sonno
   const sonnoScore  = (Number(sonno.qualita) || 0) / 10 * p.sonno
 
-  // 8. Small Habits: 0→0 | 1→p.smallHabits/2 | 2+→p.smallHabits
+  // 8. Small Habits: min(completate × puntiPerSmallHabit, tetto smallHabits)
   const doneHabits  = habits.filter(h => h.done).length
-  const habitsScore = doneHabits === 0 ? 0 : doneHabits === 1 ? p.smallHabits / 2 : p.smallHabits
+  const habitsScore = Math.min(doneHabits * p.puntiPerSmallHabit, p.smallHabits)
 
-  // 9. Key Habits: 0→0 | 1→p.keyHabits/2 | 2+→p.keyHabits
+  // 9. Key Habits: min(completate × puntiPerKeyHabit, tetto keyHabits)
   const doneKeyH    = keyH.filter(h => h.done).length
-  const keyScore    = doneKeyH === 0 ? 0 : doneKeyH === 1 ? p.keyHabits / 2 : p.keyHabits
+  const keyScore    = Math.min(doneKeyH * p.puntiPerKeyHabit, p.keyHabits)
 
   const total = social + workout + water + zuccheri + umoreScore + todoScore + sonnoScore + habitsScore + keyScore
   const voto  = Math.round(total / 10)

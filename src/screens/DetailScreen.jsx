@@ -437,7 +437,7 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit, on
       <main className={styles.main}>
 
         {/* ── TO DO (sempre attivo, anche per date future) ────── */}
-        <section className={styles.cardWhite}>
+        <section className={styles.cardTodo}>
           <h2 className={styles.blockTitle}>To do</h2>
 
           <ul className={styles.todoList}>
@@ -716,7 +716,7 @@ export default function DetailScreen({ onBack, initialDate, onOpenRecapHabit, on
 
         {/* ── KEY HABITS (riga intera, sopra Small Habits) ──────── */}
         {keyHabits.length > 0 && (
-          <section className={`${styles.cardWhite} ${future ? styles.disabled : ''}`}>
+          <section className={`${styles.cardKeyHabits} ${future ? styles.disabled : ''}`}>
             <h2 className={styles.blockTitle}>Key Habits</h2>
             <ul className={styles.habitList}>
               {keyHabits.map(h => (

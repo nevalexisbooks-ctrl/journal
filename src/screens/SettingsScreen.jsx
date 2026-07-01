@@ -68,6 +68,11 @@ export default function SettingsScreen({ onBack }) {
   // ── Key Habits ───────────────────────────────────────────────────────────
   const [keyHabits, setKeyHabits] = useState([])
 
+  // ── Collapsibili ─────────────────────────────────────────────────────────
+  const [cicloOpen,     setCicloOpen]     = useState(false)
+  const [keyHabitsOpen, setKeyHabitsOpen] = useState(false)
+  const [smallHabOpen,  setSmallHabOpen]  = useState(false)
+
   // ── Formula Voto ─────────────────────────────────────────────────────────
   const [formulaOpen,   setFormulaOpen]   = useState(false)
   const [scoreVersions, setScoreVersions] = useState([])
@@ -246,7 +251,9 @@ export default function SettingsScreen({ onBack }) {
   //  HANDLERS — FORMULA VOTO
   // ════════════════════════════════════════════════════════════════
 
-  const sumPesi = Object.values(editPesi).reduce((a, b) => a + Number(b), 0)
+  // I due moltiplicatori (puntiPer*) non entrano nel vincolo somma=100
+  const PESI_SUM_KEYS = ['social','workout','acqua','zeroZuccheri','umore','task','sonno','smallHabits','keyHabits']
+  const sumPesi = PESI_SUM_KEYS.reduce((a, k) => a + Number(editPesi[k] ?? 0), 0)
 
   const saveFormulaVersion = async () => {
     if (sumPesi !== 100) return
@@ -533,8 +540,12 @@ export default function SettingsScreen({ onBack }) {
 
         {/* ── CALENDARIO DEL CICLO ────────────────────────────── */}
         <section className={styles.cardWhite}>
-          <h2 className={styles.blockTitle}>Calendario del Ciclo</h2>
+          <button className={styles.collapseHeader} onClick={() => setCicloOpen(o => !o)}>
+            <h2 className={styles.blockTitle} style={{ margin: 0 }}>Calendario del Ciclo</h2>
+            <span className={`${styles.collapseChevron} ${cicloOpen ? styles.collapseOpen : ''}`}>▾</span>
+          </button>
 
+          {cicloOpen && <div className={styles.collapseBody}>
           <div className={styles.fieldGroup}>
             <label className={styles.fieldLabel}>Data inizio ultimo ciclo</label>
             <input
@@ -578,6 +589,7 @@ export default function SettingsScreen({ onBack }) {
           >
             {cicloSaving ? 'Salvataggio…' : cicloSaved ? '✓ Salvato' : 'Salva'}
           </button>
+          </div>}
         </section>
 
         {/* ── FORMULA VOTO ────────────────────────────────────── */}
@@ -603,14 +615,21 @@ export default function SettingsScreen({ onBack }) {
                   Task = (fatte/tot) × <b>PESO</b>
                 </p>
                 <p>
-                  Sonno = (qualità/10) × <b>PESO</b> &nbsp;|&nbsp;
-                  SmallHabits: 0→0 | 1→<b>PESO</b>/2 | 2+→<b>PESO</b> &nbsp;|&nbsp;
-                  KeyHabits: 0→0 | 1→<b>PESO</b>/2 | 2+→<b>PESO</b>
+                  Sonno = (qualità/10) × <b>PESO</b>
                 </p>
-                <p style={{ marginTop: 4, fontStyle: 'italic' }}>Vincolo: la somma di tutti i pesi deve essere 100.</p>
+                <p>
+                  SmallHabits = min(completate × <b>PUNTI_PER_SMALL_HABIT</b>, <b>PESO_SMALL_HABITS</b>)
+                </p>
+                <p>
+                  KeyHabits = min(completate × <b>PUNTI_PER_KEY_HABIT</b>, <b>PESO_KEY_HABITS</b>)
+                </p>
+                <p style={{ marginTop: 4, fontStyle: 'italic' }}>
+                  Vincolo: la somma dei 9 pesi principali deve essere 100. I moltiplicatori PUNTI_PER_* non entrano nella somma.
+                </p>
               </div>
 
-              {/* Input pesi */}
+              {/* Input 9 pesi (somma = 100) */}
+              <p className={styles.pesoSectionLabel}>Pesi (somma = 100)</p>
               <div className={styles.pesiGrid}>
                 {[
                   ['social',       'Social'],
@@ -620,14 +639,14 @@ export default function SettingsScreen({ onBack }) {
                   ['umore',        'Umore'],
                   ['task',         'Task'],
                   ['sonno',        'Sonno'],
-                  ['smallHabits',  'Small Habits'],
-                  ['keyHabits',    'Key Habits'],
+                  ['smallHabits',  'Small Habits (tetto)'],
+                  ['keyHabits',    'Key Habits (tetto)'],
                 ].map(([key, label]) => (
                   <div key={key} className={styles.pesoRow}>
                     <span className={styles.pesoLabel}>{label}</span>
                     <input
                       className={`${styles.fieldInput} ${styles.inputShort}`}
-                      type="number" min="0" max="100"
+                      type="number" min="0" max="100" step="1"
                       value={editPesi[key] ?? 0}
                       onChange={e => setEditPesi(p => ({ ...p, [key]: Number(e.target.value) }))}
                     />
@@ -641,6 +660,25 @@ export default function SettingsScreen({ onBack }) {
                 {sumPesi !== 100 && <span> — deve essere esattamente 100</span>}
               </div>
 
+              {/* Input moltiplicatori (non entrano nella somma) */}
+              <p className={styles.pesoSectionLabel} style={{ marginTop: 14 }}>Moltiplicatori per habit</p>
+              <div className={styles.pesiGrid}>
+                {[
+                  ['puntiPerSmallHabit', 'Punti per Small Habit'],
+                  ['puntiPerKeyHabit',   'Punti per Key Habit'],
+                ].map(([key, label]) => (
+                  <div key={key} className={styles.pesoRow}>
+                    <span className={styles.pesoLabel}>{label}</span>
+                    <input
+                      className={`${styles.fieldInput} ${styles.inputShort}`}
+                      type="number" min="0" max="100" step="0.5"
+                      value={editPesi[key] ?? 0}
+                      onChange={e => setEditPesi(p => ({ ...p, [key]: Number(e.target.value) }))}
+                    />
+                  </div>
+                ))}
+              </div>
+
               {/* Storico versioni */}
               {scoreVersions.length > 0 && (
                 <div className={styles.formulaHistory}>
@@ -649,7 +687,7 @@ export default function SettingsScreen({ onBack }) {
                     .sort((a, b) => b.dataInizio.localeCompare(a.dataInizio))
                     .map((v, i) => (
                       <p key={i} className={styles.formulaHistoryRow}>
-                        {v.dataInizio} — somma {Object.values(v.pesi).reduce((a,b) => a+b, 0)} pt
+                        {v.dataInizio} — somma pesi {PESI_SUM_KEYS.reduce((a, k) => a + Number(v.pesi?.[k] ?? DEFAULT_PESI[k]), 0)} pt
                       </p>
                     ))
                   }
@@ -670,7 +708,12 @@ export default function SettingsScreen({ onBack }) {
 
         {/* ── KEY HABITS ──────────────────────────────────────── */}
         <section className={styles.cardWhite}>
-          <h2 className={styles.blockTitle}>Key Habits</h2>
+          <button className={styles.collapseHeader} onClick={() => setKeyHabitsOpen(o => !o)}>
+            <h2 className={styles.blockTitle} style={{ margin: 0 }}>Key Habits</h2>
+            <span className={`${styles.collapseChevron} ${keyHabitsOpen ? styles.collapseOpen : ''}`}>▾</span>
+          </button>
+
+          {keyHabitsOpen && <div className={styles.collapseBody}>
           <p className={styles.blockSub}>
             Habit principali, mostrate sopra le Small Habits in "Nel dettaglio".
           </p>
@@ -723,11 +766,17 @@ export default function SettingsScreen({ onBack }) {
           <button className={styles.btnAdd} onClick={addKeyHabit}>
             + Aggiungi key habit
           </button>
+          </div>}
         </section>
 
         {/* ── SMALL HABITS ────────────────────────────────────── */}
         <section className={styles.cardSage}>
-          <h2 className={styles.blockTitle}>Small Habits</h2>
+          <button className={styles.collapseHeader} onClick={() => setSmallHabOpen(o => !o)}>
+            <h2 className={styles.blockTitle} style={{ margin: 0 }}>Small Habits</h2>
+            <span className={`${styles.collapseChevron} ${smallHabOpen ? styles.collapseOpen : ''}`}>▾</span>
+          </button>
+
+          {smallHabOpen && <div className={styles.collapseBody}>
           <p className={styles.blockSub}>
             Una habit appare in "Nel dettaglio" solo nelle date comprese nel suo intervallo.
           </p>
@@ -781,6 +830,7 @@ export default function SettingsScreen({ onBack }) {
           <button className={styles.btnAdd} onClick={addHabit}>
             + Aggiungi habit
           </button>
+          </div>}
         </section>
 
         {/* ── PROMPT AI ───────────────────────────────────────── */}
