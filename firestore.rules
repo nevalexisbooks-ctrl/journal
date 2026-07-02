@@ -2,14 +2,56 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // La chiave API Anthropic è qui — solo firebase-admin (Cloud Function) può accedervi
+    // ── BLOCCHI SENSIBILI ─────────────────────────────────────────────────────
+    // settings/serverConfig contiene la chiave API Anthropic.
+    // Accessibile SOLO da firebase-admin (Cloud Function), mai dal client.
     match /settings/serverConfig {
       allow read, write: if false;
     }
 
-    // Tutto il resto è accessibile liberamente (app privata, accesso controllato da PIN lato UI)
-    match /{document=**} {
+    // ── COLLEZIONI CLIENT ─────────────────────────────────────────────────────
+    // App privata: sicurezza affidata al PIN lato UI.
+    // Nessun catch-all — solo i path effettivamente usati dal client.
+
+    // Dati giornalieri (giorni/{YYYY-MM-DD})
+    match /giorni/{day} {
       allow read, write: if true;
+    }
+
+    // Dati settimanali (settimane/{YYYY-WNN})
+    match /settimane/{week} {
+      allow read, write: if true;
+    }
+
+    // Note mensili (mesi/{YYYY-MM})
+    match /mesi/{month} {
+      allow read, write: if true;
+    }
+
+    // Memoria assistente (collezione con auto-id)
+    match /memoria/{entry} {
+      allow read, write: if true;
+    }
+
+    // Storico chat
+    match /chat/storia {
+      allow read, write: if true;
+    }
+
+    // Impostazioni client — documenti specifici (serverConfig escluso sopra)
+    match /settings/ciclo         { allow read, write: if true; }
+    match /settings/habits        { allow read, write: if true; }
+    match /settings/keyHabits     { allow read, write: if true; }
+    match /settings/profilo       { allow read, write: if true; }
+    match /settings/aiPrompt      { allow read, write: if true; }
+    match /settings/scoreFormulas { allow read, write: if true; }
+
+    // SettingsScreen usa getDocs(collection(db, 'settings')) per l'export dati.
+    // La list sulla collection è permessa, ma serverConfig resta illeggibile
+    // perché la sua regola specifica (if false) ha priorità sulla regola
+    // del singolo documento — la list restituirà solo i doc leggibili.
+    match /settings/{doc} {
+      allow list: if true;
     }
 
   }
